@@ -215,6 +215,7 @@ class Game {
         document.getElementById('start-btn').addEventListener('click', () => this.startGame());
         document.getElementById('retry-btn').addEventListener('click', () => this.startGame());
         document.getElementById('back-btn').addEventListener('click', () => this.showTitle());
+        document.getElementById('home-btn').addEventListener('click', () => this.showTitle());
 
         this.canvas.addEventListener('mousemove', (e) => {
             if (!this.gameRunning) return;
