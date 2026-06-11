@@ -384,46 +384,7 @@ body {
     border-bottom: 1px dashed #ffd700;
 }
 
-/* Virtual Joystick */
-#joystick {
-    display: none;
-    position: absolute;
-    bottom: 30px;
-    right: 20px;
-    width: 130px;
-    height: 130px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.08);
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    z-index: 20;
-    user-select: none;
-    -webkit-user-select: none;
-    touch-action: none;
-}
-
-#joystick-knob {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 54px;
-    height: 54px;
-    margin-top: -27px;
-    margin-left: -27px;
-    border-radius: 50%;
-    background: rgba(74, 127, 255, 0.5);
-    border: 2px solid rgba(120, 170, 255, 0.7);
-    transition: background 0.1s;
-}
-
-#joystick-knob.firing {
-    background: rgba(255, 80, 80, 0.7);
-    border-color: rgba(255, 120, 120, 0.9);
-}
-
 @media (hover: none) and (pointer: coarse), (max-width: 768px) {
-    #joystick {
-        display: block;
-    }
     #game-screen {
         cursor: default;
     }
