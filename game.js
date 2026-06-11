@@ -23,6 +23,8 @@ class Game {
         this.shooting = false;
         this.shootTimer = 0;
         this.shootInterval = 18;
+        this.isMobile = 'ontouchstart' in window;
+        this.autoShoot = this.isMobile;
 
         // Game objects
         this.bullets = [];
@@ -237,15 +239,12 @@ class Game {
 
         this.canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            this.shooting = true;
             this.updateTouch(e);
-            this.shootTimer = this.shootInterval;
         }, { passive: false });
         this.canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
             this.updateTouch(e);
         }, { passive: false });
-        this.canvas.addEventListener('touchend', () => { this.shooting = false; });
     }
 
     updateSectionVisibility() {
@@ -450,7 +449,7 @@ class Game {
         this.player.x += (this.mouseX - this.player.x) * 0.15;
         this.player.y += (this.mouseY - this.player.y) * 0.15;
 
-        if (this.shooting && !this.questionTransition) {
+        if ((this.shooting || this.autoShoot) && !this.questionTransition) {
             this.shootTimer++;
             if (this.shootTimer >= this.shootInterval) {
                 this.fireBullet();
