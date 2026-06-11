@@ -269,7 +269,7 @@ class Game {
         const scaleX = this.canvas.width / rect.width;
         const scaleY = this.canvas.height / rect.height;
         this.mouseX = (e.touches[0].clientX - rect.left) * scaleX;
-        this.mouseY = (e.touches[0].clientY - rect.top) * scaleY;
+        this.mouseY = (e.touches[0].clientY - rect.top) * scaleY - 80;
     }
 
     resizeCanvas() {
