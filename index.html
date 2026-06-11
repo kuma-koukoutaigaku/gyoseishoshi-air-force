@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>行政書士 Air Force</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="title-screen">
+            <h1>行政書士<br>Air Force</h1>
+            <p class="subtitle">正しい用語を撃ち抜いて条文を完成させろ！</p>
+
+            <div id="mode-select">
+                <button class="mode-btn" data-mode="random">ランダム10問</button>
+                <button class="mode-btn selected" data-mode="sequential">順番に出題</button>
+            </div>
+
+            <div id="category-select">
+                <h3>分野を選択</h3>
+                <div id="category-buttons"></div>
+            </div>
+
+            <div id="section-select">
+                <h3>出題範囲</h3>
+                <div id="section-buttons"></div>
+            </div>
+
+            <button id="start-btn">ゲームスタート</button>
+        </div>
+
+        <div id="game-screen" class="hidden">
+            <canvas id="game-canvas"></canvas>
+            <div id="hud">
+                <div id="score-display">SCORE: <span id="score">0</span></div>
+                <div id="life-display">HP: <span id="lives"></span></div>
+                <div id="question-num">Q.<span id="q-current">1</span>/<span id="q-total">10</span></div>
+            </div>
+            <div id="question-area">
+                <div id="question-text"></div>
+            </div>
+        </div>
+
+        <div id="result-screen" class="hidden">
+            <h2 id="result-title"></h2>
+            <div id="result-score"></div>
+            <div id="result-detail"></div>
+            <button id="retry-btn">もう一度プレイ</button>
+            <button id="back-btn">タイトルに戻る</button>
+        </div>
+    </div>
+
+    <script src="questions.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
