@@ -237,6 +237,9 @@ class Game {
         this.canvas.addEventListener('mouseup', () => { this.shooting = false; });
 
         this.lastTapTime = 0;
+        this.touchStartX = 0;
+        this.touchStartY = 0;
+        this.playerAtTouchStart = { x: 0, y: 0 };
 
         this.canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
@@ -247,11 +250,22 @@ class Game {
                 setTimeout(() => { this.shooting = false; }, 250);
             }
             this.lastTapTime = now;
-            this.updateTouch(e);
+            const touch = e.touches[0];
+            this.touchStartX = touch.clientX;
+            this.touchStartY = touch.clientY;
+            this.playerAtTouchStart.x = this.mouseX;
+            this.playerAtTouchStart.y = this.mouseY;
         }, { passive: false });
         this.canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
-            this.updateTouch(e);
+            const touch = e.touches[0];
+            const rect = this.canvas.getBoundingClientRect();
+            const scaleX = this.canvas.width / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            const dx = (touch.clientX - this.touchStartX) * scaleX;
+            const dy = (touch.clientY - this.touchStartY) * scaleY;
+            this.mouseX = this.playerAtTouchStart.x + dx;
+            this.mouseY = this.playerAtTouchStart.y + dy;
         }, { passive: false });
     }
 
@@ -265,13 +279,6 @@ class Game {
         }
     }
 
-    updateTouch(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        const scaleX = this.canvas.width / rect.width;
-        const scaleY = this.canvas.height / rect.height;
-        this.mouseX = (e.touches[0].clientX - rect.left) * scaleX;
-        this.mouseY = (e.touches[0].clientY - rect.top) * scaleY - 80;
-    }
 
     resizeCanvas() {
         this.canvas.width = window.innerWidth;
