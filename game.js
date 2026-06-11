@@ -23,8 +23,6 @@ class Game {
         this.shooting = false;
         this.shootTimer = 0;
         this.shootInterval = 18;
-        this.isMobile = 'ontouchstart' in window;
-        this.autoShoot = this.isMobile;
 
         // Game objects
         this.bullets = [];
@@ -239,12 +237,84 @@ class Game {
 
         this.canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            this.updateTouch(e);
         }, { passive: false });
         this.canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
-            this.updateTouch(e);
         }, { passive: false });
+
+        this.joystickActive = false;
+        this.joystickTouchId = null;
+        this.joystickCenter = { x: 0, y: 0 };
+        this.joystickOffset = { x: 0, y: 0 };
+        this.joystickTapStart = 0;
+        this.joystickMoved = false;
+        this.joystickSpeed = 8;
+
+        const joystick = document.getElementById('joystick');
+        const knob = document.getElementById('joystick-knob');
+        const maxDrag = 38;
+
+        joystick.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (this.joystickActive) return;
+            const touch = e.changedTouches[0];
+            this.joystickTouchId = touch.identifier;
+            const rect = joystick.getBoundingClientRect();
+            this.joystickCenter.x = rect.left + rect.width / 2;
+            this.joystickCenter.y = rect.top + rect.height / 2;
+            this.joystickActive = true;
+            this.joystickOffset.x = 0;
+            this.joystickOffset.y = 0;
+            this.joystickTapStart = Date.now();
+            this.joystickMoved = false;
+        }, { passive: false });
+
+        joystick.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            for (const touch of e.changedTouches) {
+                if (touch.identifier !== this.joystickTouchId) continue;
+                let dx = touch.clientX - this.joystickCenter.x;
+                let dy = touch.clientY - this.joystickCenter.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 5) this.joystickMoved = true;
+                if (dist > maxDrag) {
+                    dx = dx / dist * maxDrag;
+                    dy = dy / dist * maxDrag;
+                }
+                this.joystickOffset.x = dx;
+                this.joystickOffset.y = dy;
+                knob.style.transform = `translate(${dx}px, ${dy}px)`;
+            }
+        }, { passive: false });
+
+        const endJoystick = (e) => {
+            for (const touch of e.changedTouches) {
+                if (touch.identifier !== this.joystickTouchId) continue;
+                if (!this.joystickMoved && Date.now() - this.joystickTapStart < 300) {
+                    this.shooting = true;
+                    this.shootTimer = this.shootInterval;
+                    knob.classList.add('firing');
+                    setTimeout(() => {
+                        this.shooting = false;
+                        knob.classList.remove('firing');
+                    }, 200);
+                }
+                this.joystickActive = false;
+                this.joystickTouchId = null;
+                this.joystickOffset.x = 0;
+                this.joystickOffset.y = 0;
+                knob.style.transform = '';
+            }
+        };
+        joystick.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            endJoystick(e);
+        });
+        joystick.addEventListener('touchcancel', (e) => {
+            endJoystick(e);
+        });
     }
 
     updateSectionVisibility() {
@@ -446,10 +516,21 @@ class Game {
     }
 
     update() {
-        this.player.x += (this.mouseX - this.player.x) * 0.15;
-        this.player.y += (this.mouseY - this.player.y) * 0.15;
+        if (this.joystickActive && this.joystickMoved) {
+            const nx = this.joystickOffset.x / 38;
+            const ny = this.joystickOffset.y / 38;
+            this.player.x += nx * this.joystickSpeed;
+            this.player.y += ny * this.joystickSpeed;
+            this.player.x = Math.max(25, Math.min(this.canvas.width - 25, this.player.x));
+            this.player.y = Math.max(80, Math.min(this.canvas.height - 40, this.player.y));
+            this.mouseX = this.player.x;
+            this.mouseY = this.player.y;
+        } else {
+            this.player.x += (this.mouseX - this.player.x) * 0.15;
+            this.player.y += (this.mouseY - this.player.y) * 0.15;
+        }
 
-        if ((this.shooting || this.autoShoot) && !this.questionTransition) {
+        if (this.shooting && !this.questionTransition) {
             this.shootTimer++;
             if (this.shootTimer >= this.shootInterval) {
                 this.fireBullet();
