@@ -7,7 +7,7 @@
 body {
     background: #0a0a2e;
     color: #fff;
-    font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+    font-family: 'DotGothic16', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
     overflow: hidden;
     height: 100vh;
     width: 100vw;
@@ -131,6 +131,26 @@ body {
     margin-top: 0.5rem;
     margin-bottom: 0.1rem;
     text-align: center;
+}
+
+.category-group-label.custom-group {
+    color: #e9967a;
+}
+
+.category-btn.custom-category {
+    border-color: #6a4a3a;
+    color: #e9967a;
+}
+
+.category-btn.custom-category:hover {
+    border-color: #e9967a;
+    background: rgba(233, 150, 122, 0.1);
+}
+
+.category-btn.custom-category.selected {
+    background: #e9967a;
+    color: #0a0a2e;
+    border-color: #e9967a;
 }
 
 /* Section Select */
@@ -291,6 +311,7 @@ body {
     font-size: 1rem;
     line-height: 1.7;
     text-align: center;
+    font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
 }
 
 .blank {
@@ -315,6 +336,41 @@ body {
     0% { transform: scale(1); }
     50% { transform: scale(1.15); }
     100% { transform: scale(1); }
+}
+
+/* Question Table Format */
+.q-table {
+    border-collapse: collapse;
+    margin: 0.3rem auto;
+    font-size: 0.85rem;
+    width: auto;
+}
+
+.q-table th, .q-table td {
+    border: 1px solid #4a4a8a;
+    padding: 0.3rem 0.6rem;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.q-table th {
+    background: rgba(74, 127, 255, 0.2);
+    color: #8ab4f8;
+    font-weight: bold;
+    font-size: 0.8rem;
+}
+
+.q-table td {
+    background: rgba(10, 10, 40, 0.5);
+}
+
+.result-item .q-table {
+    font-size: 0.75rem;
+    margin: 0.3rem 0;
+}
+
+.result-item .q-table th, .result-item .q-table td {
+    padding: 0.2rem 0.4rem;
 }
 
 /* Result Screen */
@@ -356,6 +412,7 @@ body {
     border: 1px solid #2a2a6a;
     border-radius: 6px;
     text-align: left;
+    font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
     font-size: 0.85rem;
     line-height: 1.6;
     background: rgba(10, 10, 40, 0.6);

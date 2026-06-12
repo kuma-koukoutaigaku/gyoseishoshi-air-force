@@ -72,14 +72,14 @@ class Game {
             if (cat.group && cat.group !== currentGroup) {
                 currentGroup = cat.group;
                 const label = document.createElement('div');
-                label.className = 'category-group-label';
+                label.className = 'category-group-label' + (key.startsWith('custom_') ? ' custom-group' : '');
                 label.textContent = `── ${cat.group} ──`;
                 container.appendChild(label);
             } else if (!cat.group && currentGroup !== null) {
                 currentGroup = null;
             }
             const btn = document.createElement('button');
-            btn.className = 'category-btn';
+            btn.className = 'category-btn' + (key.startsWith('custom_') ? ' custom-category' : '');
             btn.dataset.category = key;
             btn.textContent = cat.label;
             container.appendChild(btn);
@@ -369,10 +369,7 @@ class Game {
         const q = this.questions[this.currentQuestionIndex];
         const questionText = document.getElementById('question-text');
 
-        let html = q.text;
-        q.blanks.forEach((blank, i) => {
-            html = html.replaceAll(`{${i}}`, `<span class="blank blank-group-${i}">　　　</span>`);
-        });
+        let html = this.renderQuestionHTML(q.text, q.blanks, false);
         questionText.innerHTML = `<span style="color:#666; font-size:0.75rem;">${q.source}</span><br>` + html;
 
         document.getElementById('q-current').textContent = this.currentQuestionIndex + 1;
@@ -688,11 +685,58 @@ class Game {
     }
 
     buildFilledText(q) {
-        let text = q.text;
-        q.blanks.forEach((blank, i) => {
-            text = text.replaceAll(`{${i}}`, `<span class="filled-blank">【${blank}】</span>`);
+        return this.renderQuestionHTML(q.text, q.blanks, true);
+    }
+
+    isTableFormat(text) {
+        const lines = text.split('\n').filter(l => l.trim());
+        if (lines.length < 2) return false;
+        // 各行に／が含まれ、全行の／の数が同じなら表形式
+        const slashCounts = lines.map(l => (l.match(/／/g) || []).length);
+        return slashCounts[0] >= 1 && slashCounts.every(c => c === slashCounts[0]);
+    }
+
+    renderQuestionHTML(text, blanks, filled) {
+        if (this.isTableFormat(text)) {
+            return this.renderTableHTML(text, blanks, filled);
+        }
+        let html = text;
+        blanks.forEach((blank, i) => {
+            if (filled) {
+                html = html.replaceAll(`{${i}}`, `<span class="filled-blank">【${blank}】</span>`);
+            } else {
+                html = html.replaceAll(`{${i}}`, `<span class="blank blank-group-${i}">　　　</span>`);
+            }
         });
-        return text;
+        return html;
+    }
+
+    renderTableHTML(text, blanks, filled) {
+        const lines = text.split('\n').filter(l => l.trim());
+        let html = '<table class="q-table">';
+        lines.forEach((line, rowIdx) => {
+            let trimmed = line.trim();
+            // 先頭末尾の／を除去（あってもなくてもOK）
+            if (trimmed.startsWith('／')) trimmed = trimmed.substring(1);
+            if (trimmed.endsWith('／')) trimmed = trimmed.substring(0, trimmed.length - 1);
+            const cells = trimmed.split('／');
+            html += '<tr>';
+            cells.forEach(cell => {
+                const tag = rowIdx === 0 ? 'th' : 'td';
+                let content = cell.trim();
+                blanks.forEach((blank, i) => {
+                    if (filled) {
+                        content = content.replaceAll(`{${i}}`, `<span class="filled-blank">【${blank}】</span>`);
+                    } else {
+                        content = content.replaceAll(`{${i}}`, `<span class="blank blank-group-${i}">　　　</span>`);
+                    }
+                });
+                html += `<${tag}>${content}</${tag}>`;
+            });
+            html += '</tr>';
+        });
+        html += '</table>';
+        return html;
     }
 
     endGame() {
@@ -1010,3 +1054,13 @@ class Game {
 }
 
 const game = new Game();
+
+// カスタム問題（Googleスプレッドシート）を非同期ロード
+if (typeof customLoader !== 'undefined' && CUSTOM_CONFIG.sheetId) {
+    customLoader.load().then(() => {
+        if (customLoader.loaded) {
+            game.buildCategoryButtons();
+            game.buildSetButtons();
+        }
+    });
+}
