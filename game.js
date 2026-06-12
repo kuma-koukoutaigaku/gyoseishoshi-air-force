@@ -477,6 +477,7 @@ class Game {
             const rate = Math.max(60, this.enemySpawnInterval - this.difficulty * 8);
             if (this.enemySpawnTimer >= rate) {
                 this.spawnEnemy();
+                this.spawnEnemy();
                 this.enemySpawnTimer = 0;
             }
         }
