@@ -477,7 +477,6 @@ class Game {
             const rate = Math.max(60, this.enemySpawnInterval - this.difficulty * 8);
             if (this.enemySpawnTimer >= rate) {
                 this.spawnEnemy();
-                this.spawnEnemy();
                 this.enemySpawnTimer = 0;
             }
         }
@@ -529,7 +528,7 @@ class Game {
             }
         }
 
-        if (this.wordPoolIndex >= this.wordPool.length && this.enemies.filter(e => !e.dying).length === 0 && !this.questionTransition) {
+        if (this.wordPoolIndex >= this.wordPool.length && !this.questionTransition) {
             this.wordPool = this.shuffle(this.wordPool);
             this.wordPoolIndex = 0;
         }
