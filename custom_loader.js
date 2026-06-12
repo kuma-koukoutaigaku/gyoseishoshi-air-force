@@ -152,16 +152,16 @@ class CustomQuestionLoader {
             const section = (row[1] || '').trim();
             let text = (row[2] || '').trim();
             const answers = [];
-            for (let i = 3; i <= 6; i++) {
+            for (let i = 3; i <= 7; i++) {
                 if (row[i] && row[i].trim()) answers.push(row[i].trim());
             }
-            const source = (row[7] || '').trim();
-            const customDecoys = row[8]
-                ? row[8].split('|').map(d => d.trim()).filter(d => d)
+            const source = (row[8] || '').trim();
+            const customDecoys = row[9]
+                ? row[9].split('|').map(d => d.trim()).filter(d => d)
                 : [];
 
-            // ①②③④ → {0}{1}{2}{3} に変換
-            const circleNums = ['①', '②', '③', '④'];
+            // ①②③④⑤ → {0}{1}{2}{3}{4} に変換
+            const circleNums = ['①', '②', '③', '④', '⑤'];
             circleNums.forEach((cn, i) => {
                 text = text.replaceAll(cn, `{${i}}`);
             });
