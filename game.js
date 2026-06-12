@@ -691,9 +691,11 @@ class Game {
     isTableFormat(text) {
         const lines = text.split('\n').filter(l => l.trim());
         if (lines.length < 2) return false;
-        // 各行に／が含まれ、全行の／の数が同じなら表形式
-        const slashCounts = lines.map(l => (l.match(/／/g) || []).length);
-        return slashCounts[0] >= 1 && slashCounts.every(c => c === slashCounts[0]);
+        // ／を含む行が2行以上あり、それらの／の数が同じなら表形式
+        const slashLines = lines.filter(l => (l.match(/／/g) || []).length >= 1);
+        if (slashLines.length < 2) return false;
+        const counts = slashLines.map(l => (l.match(/／/g) || []).length);
+        return counts.every(c => c === counts[0]);
     }
 
     renderQuestionHTML(text, blanks, filled) {
@@ -712,11 +714,29 @@ class Game {
     }
 
     renderTableHTML(text, blanks, filled) {
-        const lines = text.split('\n').filter(l => l.trim());
-        let html = '<table class="q-table">';
-        lines.forEach((line, rowIdx) => {
+        const allLines = text.split('\n').filter(l => l.trim());
+        // ／を含む行と含まない行（タイトル）を分離
+        const titleLines = [];
+        const tableLines = [];
+        for (const line of allLines) {
+            if ((line.match(/／/g) || []).length >= 1) {
+                tableLines.push(line);
+            } else if (tableLines.length === 0) {
+                titleLines.push(line);
+            } else {
+                tableLines.push(line);
+            }
+        }
+
+        let html = '';
+        // タイトル行があれば先に表示
+        if (titleLines.length > 0) {
+            html += '<div class="q-table-title">' + titleLines.join('<br>') + '</div>';
+        }
+
+        html += '<table class="q-table">';
+        tableLines.forEach((line, rowIdx) => {
             let trimmed = line.trim();
-            // 先頭末尾の／を除去（あってもなくてもOK）
             if (trimmed.startsWith('／')) trimmed = trimmed.substring(1);
             if (trimmed.endsWith('／')) trimmed = trimmed.substring(0, trimmed.length - 1);
             const cells = trimmed.split('／');

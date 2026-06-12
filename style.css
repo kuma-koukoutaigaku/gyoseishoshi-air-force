@@ -300,11 +300,12 @@ body {
     top: 32px;
     left: 0;
     right: 0;
-    padding: 10px 12px;
+    padding: 10px 8px;
     background: rgba(10, 10, 40, 0.85);
     border-bottom: 1px solid #2a2a6a;
     z-index: 10;
     pointer-events: none;
+    overflow-x: auto;
 }
 
 #question-text {
@@ -342,15 +343,17 @@ body {
 .q-table {
     border-collapse: collapse;
     margin: 0.3rem auto;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     width: auto;
+    max-width: 100%;
 }
 
 .q-table th, .q-table td {
     border: 1px solid #4a4a8a;
-    padding: 0.3rem 0.6rem;
+    padding: 0.25rem 0.4rem;
     text-align: center;
     white-space: nowrap;
+    font-size: 0.7rem;
 }
 
 .q-table th {
@@ -371,6 +374,13 @@ body {
 
 .result-item .q-table th, .result-item .q-table td {
     padding: 0.2rem 0.4rem;
+}
+
+.q-table-title {
+    font-size: 0.85rem;
+    color: #ccc;
+    margin-bottom: 0.3rem;
+    text-align: center;
 }
 
 /* Result Screen */
