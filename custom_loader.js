@@ -152,13 +152,23 @@ class CustomQuestionLoader {
             const section = (row[1] || '').trim();
             let text = (row[2] || '').trim();
             const answers = [];
+            const inlineDecoys = [];
             for (let i = 3; i <= 7; i++) {
-                if (row[i] && row[i].trim()) answers.push(row[i].trim());
+                if (row[i] && row[i].trim()) {
+                    const parts = row[i].trim().split('/');
+                    answers.push(parts[0].trim());
+                    // /以降はその穴のデコイ
+                    for (let j = 1; j < parts.length; j++) {
+                        if (parts[j].trim()) inlineDecoys.push(parts[j].trim());
+                    }
+                }
             }
             const source = (row[8] || '').trim();
             const customDecoys = row[9]
                 ? row[9].split('|').map(d => d.trim()).filter(d => d)
                 : [];
+            // インラインデコイとJ列デコイを統合
+            const allDecoys = [...inlineDecoys, ...customDecoys];
 
             // ①②③④⑤ → {0}{1}{2}{3}{4} に変換
             const circleNums = ['①', '②', '③', '④', '⑤'];
@@ -176,7 +186,7 @@ class CustomQuestionLoader {
             const q = {
                 text: text,
                 blanks: answers,
-                decoys: customDecoys,
+                decoys: allDecoys,
                 source: source
             };
             if (section) q.section = section;
