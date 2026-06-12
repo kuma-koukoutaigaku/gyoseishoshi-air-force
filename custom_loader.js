@@ -38,9 +38,9 @@ class CustomQuestionLoader {
     getSheetUrl() {
         if (!CUSTOM_CONFIG.sheetId) return null;
         if (CUSTOM_CONFIG.sheetName) {
-            return `https://docs.google.com/spreadsheets/d/${CUSTOM_CONFIG.sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(CUSTOM_CONFIG.sheetName)}`;
+            return `https://docs.google.com/spreadsheets/d/${CUSTOM_CONFIG.sheetId}/export?format=csv&sheet=${encodeURIComponent(CUSTOM_CONFIG.sheetName)}`;
         }
-        return `https://docs.google.com/spreadsheets/d/${CUSTOM_CONFIG.sheetId}/gviz/tq?tqx=out:csv&gid=0`;
+        return `https://docs.google.com/spreadsheets/d/${CUSTOM_CONFIG.sheetId}/export?format=csv&gid=0`;
     }
 
     async load() {
