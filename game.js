@@ -701,15 +701,12 @@ class Game {
             }
         }
 
-        // スポーンタイマー: targetOnScreenに達するまで1個ずつ出す
+        // スポーンタイマー: 常に一定間隔で出し続ける（途切れなし）
         if (!this.questionTransition) {
-            const aliveCount = this.enemies.filter(e => !e.dying).length;
-            if (aliveCount < this.targetOnScreen) {
-                this.spawnTimer++;
-                if (this.spawnTimer >= this.spawnInterval) {
-                    this.spawnTimer = 0;
-                    this.spawnNewEnemy();
-                }
+            this.spawnTimer++;
+            if (this.spawnTimer >= this.spawnInterval) {
+                this.spawnTimer = 0;
+                this.spawnNewEnemy();
             }
         }
 
