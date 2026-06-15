@@ -472,7 +472,11 @@ class Game {
         // 間隔 = 画面高さ ÷ target数（target=2なら画面半分、target=8なら1/8）
         // ただし画面に0個なら即スポーン（途切れ防止）
         if (activeCount > 0) {
-            const spacing = Math.max(80, this.canvas.height / target);
+            // target少(≤4): 画面を均等割り → ゆったり流れる
+            // target多(>4): 最小間隔だけ → 密に次々流れる
+            const spacing = target <= 4
+                ? this.canvas.height / target
+                : 45;
             const tooClose = this.enemies.some(e => !e.dying && e.y < spacing);
             if (tooClose) return;
         }
