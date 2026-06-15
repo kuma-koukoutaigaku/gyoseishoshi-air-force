@@ -531,9 +531,8 @@ class Game {
         const laneIdx = laneOptions[Math.floor(Math.random() * laneOptions.length)];
         const x = this.lanes[laneIdx];
 
-        // 速度にバラつきを持たせる（0.6x〜1.6xの範囲）
-        // 遅い単語・速い単語が混在して面白みが出る
-        const speedMult = 0.6 + Math.random() * 1.0;
+        // 速度にバラつきを持たせる（0.8x〜1.3xの範囲）
+        const speedMult = 0.8 + Math.random() * 0.5;
 
         this.enemies.push({
             ...wordData,
