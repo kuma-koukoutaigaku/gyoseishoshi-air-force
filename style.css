@@ -217,6 +217,13 @@ body {
     vertical-align: middle;
 }
 
+.set-best-score {
+    display: block;
+    font-size: 0.6rem;
+    color: #ffd700;
+    margin-top: 0.1rem;
+}
+
 /* Buttons */
 #start-btn, #retry-btn, #back-btn {
     padding: 1rem 3rem;
@@ -262,21 +269,24 @@ body {
     height: 100%;
 }
 
+/* HUD - 画面下部に配置 */
 #hud {
     position: absolute;
-    top: 0;
+    bottom: 0;
     left: 0;
     right: 0;
     display: flex;
     justify-content: space-between;
+    align-items: center;
     padding: 8px 12px;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.7);
     font-size: 0.85rem;
     z-index: 10;
     pointer-events: none;
 }
 
 #score-display { color: #ffd700; }
+#timer-display { color: #aaa; font-size: 0.8rem; }
 #life-display { color: #ff6b6b; }
 #question-num { color: #8ab4f8; }
 
@@ -295,9 +305,10 @@ body {
     padding: 0;
 }
 
+/* 問題エリア - 画面最上部（HUDのスペースなし） */
 #question-area {
     position: absolute;
-    top: 32px;
+    top: 0;
     left: 0;
     right: 0;
     padding: 10px 8px;
@@ -403,10 +414,100 @@ body {
 #result-score {
     font-size: 1.3rem;
     color: #ffd700;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
     line-height: 1.8;
+    text-align: center;
 }
 
+/* Bonus List */
+.bonus-list {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    border: 1px solid #4a4a2a;
+    border-radius: 6px;
+    background: rgba(255, 215, 0, 0.05);
+}
+
+.bonus-item {
+    font-size: 0.9rem;
+    color: #ffd700;
+    padding: 0.2rem 0;
+}
+
+.bonus-value {
+    font-weight: bold;
+    color: #4caf50;
+}
+
+/* Ranking */
+#result-ranking {
+    margin-bottom: 1rem;
+    width: 90%;
+    max-width: 400px;
+}
+
+.ranking-title {
+    text-align: center;
+    color: #ffd700;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
+.ranking-table {
+    border: 1px solid #3a3a6a;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.ranking-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid #2a2a4a;
+    font-size: 0.8rem;
+}
+
+.ranking-row:last-child {
+    border-bottom: none;
+}
+
+.ranking-row.ranking-current {
+    background: rgba(255, 215, 0, 0.1);
+}
+
+.ranking-medal {
+    width: 2rem;
+    text-align: center;
+}
+
+.ranking-score {
+    color: #ffd700;
+    font-weight: bold;
+    width: 4rem;
+    text-align: right;
+}
+
+.ranking-time {
+    color: #8ab4f8;
+    width: 3rem;
+    text-align: center;
+}
+
+.ranking-combo {
+    color: #4caf50;
+    width: 2.5rem;
+    text-align: center;
+}
+
+.ranking-date {
+    color: #666;
+    font-size: 0.7rem;
+    width: 5rem;
+    text-align: right;
+}
+
+/* Result Detail */
 #result-detail {
     margin-bottom: 2rem;
     text-align: center;
@@ -464,6 +565,36 @@ body {
     color: #ffd700;
     font-weight: bold;
     border-bottom: 1px dashed #ffd700;
+}
+
+/* Difficulty Labels */
+.result-diff {
+    font-size: 0.65rem;
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+    margin-left: 0.3rem;
+    font-family: inherit;
+}
+
+.diff-normal {
+    background: rgba(138, 180, 248, 0.2);
+    color: #8ab4f8;
+}
+
+.diff-hard {
+    background: rgba(255, 165, 0, 0.2);
+    color: #ffa500;
+}
+
+.diff-extreme {
+    background: rgba(255, 68, 68, 0.2);
+    color: #ff4444;
+}
+
+.result-time {
+    float: right;
+    font-size: 0.7rem;
+    color: #8ab4f8;
 }
 
 @media (hover: none) and (pointer: coarse), (max-width: 768px) {

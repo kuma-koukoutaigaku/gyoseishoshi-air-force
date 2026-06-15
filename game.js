@@ -51,6 +51,14 @@ class Game {
         // Combo display
         this.comboDisplay = { text: '', alpha: 0, y: 0 };
 
+        // === NEW: Scoring & Stats ===
+        this.gameStartTime = 0;
+        this.questionStartTime = 0;
+        this.questionTimes = [];
+        this.shotsFired = 0;
+        this.shotsHit = 0;
+        this.damageTaken = 0;
+
         this.initStars();
         this.buildCategoryButtons();
         this.buildSetButtons();
@@ -110,6 +118,24 @@ class Game {
         } catch {}
     }
 
+    // === NEW: Rankings ===
+    getRankings(cat, setStart) {
+        try {
+            return JSON.parse(localStorage.getItem(`af_rank_${cat}_${setStart}`)) || [];
+        } catch { return []; }
+    }
+
+    saveRanking(cat, setStart, record) {
+        try {
+            const rankings = this.getRankings(cat, setStart);
+            rankings.push(record);
+            // 上位5件のみ保持（スコア降順）
+            rankings.sort((a, b) => b.score - a.score);
+            const top5 = rankings.slice(0, 5);
+            localStorage.setItem(`af_rank_${cat}_${setStart}`, JSON.stringify(top5));
+        } catch {}
+    }
+
     buildSetButtons() {
         const container = document.getElementById('section-buttons');
         container.innerHTML = '';
@@ -145,7 +171,14 @@ class Game {
             let hint = sectionName ? `<span class="set-section-hint">${sectionName}〜</span>` : '';
             let badge = clearCount > 0 ? `<span class="set-clear-count">${clearCount}</span>` : '';
 
-            btn.innerHTML = label + hint + badge;
+            // ランキングのベストスコア表示
+            const rankings = this.getRankings(this.selectedCategory, from);
+            let rankBadge = '';
+            if (rankings.length > 0) {
+                rankBadge = `<span class="set-best-score">${rankings[0].score}pt</span>`;
+            }
+
+            btn.innerHTML = label + hint + badge + rankBadge;
 
             if (clearCount > 0) {
                 btn.classList.add('set-cleared');
@@ -323,6 +356,14 @@ class Game {
         this.shooting = false;
         this.questionTransition = false;
 
+        // Stats reset
+        this.gameStartTime = Date.now();
+        this.questionStartTime = 0;
+        this.questionTimes = [];
+        this.shotsFired = 0;
+        this.shotsHit = 0;
+        this.damageTaken = 0;
+
         this.questions = this.getQuestions();
         if (this.questions.length === 0) return;
 
@@ -360,11 +401,27 @@ class Game {
         return a;
     }
 
+    // 難易度倍率（穴の数で自動判定）
+    getDifficultyMultiplier(q) {
+        const blanks = q.blanks.length;
+        if (blanks >= 4) return 2.0;
+        if (blanks >= 2) return 1.5;
+        return 1.0;
+    }
+
+    getDifficultyLabel(q) {
+        const blanks = q.blanks.length;
+        if (blanks >= 4) return '激ムズ';
+        if (blanks >= 2) return '難';
+        return '普通';
+    }
+
     loadQuestion() {
         this.currentBlankIndex = 0;
         this.enemies = [];
         this.bullets = [];
         this.questionTransition = false;
+        this.questionStartTime = Date.now();
 
         const q = this.questions[this.currentQuestionIndex];
         const questionText = document.getElementById('question-text');
@@ -396,6 +453,10 @@ class Game {
 
     spawnEnemy() {
         if (this.wordPoolIndex >= this.wordPool.length) return;
+
+        // 画面上の敵が6体以上ならスポーンしない
+        const activeEnemies = this.enemies.filter(e => !e.dying).length;
+        if (activeEnemies >= 6) return;
 
         const wordData = this.wordPool[this.wordPoolIndex];
         this.wordPoolIndex++;
@@ -443,6 +504,15 @@ class Game {
         document.getElementById('score').textContent = this.score;
         const livesEl = document.getElementById('lives');
         livesEl.textContent = '♥'.repeat(Math.max(0, this.lives)) + '♡'.repeat(Math.max(0, 5 - this.lives));
+
+        // タイマー表示
+        if (this.gameStartTime > 0) {
+            const elapsed = Math.floor((Date.now() - this.gameStartTime) / 1000);
+            const min = Math.floor(elapsed / 60);
+            const sec = elapsed % 60;
+            document.getElementById('timer').textContent =
+                `${min}:${sec.toString().padStart(2, '0')}`;
+        }
     }
 
     // ========== MAIN LOOP ==========
@@ -454,6 +524,8 @@ class Game {
             this.frameCount++;
             this.update();
             this.render();
+            // HUDタイマーを毎秒更新
+            if (this.frameCount % 60 === 0) this.updateHUD();
         }, 1000 / 60);
     }
 
@@ -521,13 +593,35 @@ class Game {
             e.y += fallSpeed + e.speedBonus;
 
             if (e.y > this.canvas.height + 30) {
-                this.enemies.splice(i, 1);
+                // 正解の単語で、まだその穴が埋まっていないならループ（上に戻す）
+                if (e.isCorrect && e.blankIndex >= this.currentBlankIndex) {
+                    e.y = -30;
+                    e.hp = e.maxHp;
+                    // レーンを再割り当て
+                    const laneIdx = Math.floor(Math.random() * this.lanes.length);
+                    e.x = this.lanes[laneIdx];
+                    e.speedBonus = Math.random() * 0.15;
+                } else {
+                    // デコイや既に埋まった正解は削除
+                    this.enemies.splice(i, 1);
+                }
             }
         }
 
+        // プール内の単語を全部出し切ったら再シャッフル
         if (this.wordPoolIndex >= this.wordPool.length && !this.questionTransition) {
-            this.wordPool = this.shuffle(this.wordPool);
-            this.wordPoolIndex = 0;
+            // 正解がまだ画面上にあるか確認
+            const q = this.questions[this.currentQuestionIndex];
+            const neededBlanks = q.blanks.slice(this.currentBlankIndex);
+            const correctOnScreen = this.enemies.some(e =>
+                e.isCorrect && !e.dying && neededBlanks.includes(e.text)
+            );
+
+            // 正解が画面にいなければデコイを補充
+            if (!correctOnScreen) {
+                this.wordPool = this.shuffle(this.wordPool);
+                this.wordPoolIndex = 0;
+            }
         }
 
         for (let i = this.particles.length - 1; i >= 0; i--) {
@@ -571,6 +665,8 @@ class Game {
             trail: []
         });
 
+        this.shotsFired += 2;
+
         for (let i = 0; i < 3; i++) {
             this.particles.push({
                 x: this.player.x + (Math.random() - 0.5) * 10,
@@ -587,6 +683,7 @@ class Game {
     hitEnemy(enemy) {
         enemy.hp--;
         enemy.flash = 8;
+        this.shotsHit++;
 
         for (let i = 0; i < 5; i++) {
             this.particles.push({
@@ -615,8 +712,26 @@ class Game {
         if (enemy.isCorrect && enemy.text === expected) {
             this.combo++;
             if (this.combo > this.maxCombo) this.maxCombo = this.combo;
-            const points = 100 * Math.min(this.combo, 10);
+
+            // スコア計算: ベース × コンボ倍率 × 難易度倍率
+            const diffMult = this.getDifficultyMultiplier(q);
+            const basePoints = 100;
+            const comboMult = Math.min(this.combo, 10);
+            const points = Math.floor(basePoints * comboMult * diffMult);
             this.score += points;
+
+            // スピードボーナス（この問題を10秒以内に回答）
+            const qElapsed = (Date.now() - this.questionStartTime) / 1000;
+            if (this.currentBlankIndex === q.blanks.length - 1) {
+                // 最後の穴を埋めた = 問題完了
+                if (qElapsed <= 10) {
+                    const speedBonus = Math.floor(500 * diffMult);
+                    this.score += speedBonus;
+                    this.comboDisplay.text = `SPEED! +${speedBonus}`;
+                    this.comboDisplay.alpha = 1;
+                    this.comboDisplay.y = this.canvas.height * 0.4;
+                }
+            }
 
             this.spawnExplosion(enemy.x, enemy.y, '#4caf50');
             this.spawnParticles(enemy.x, enemy.y, '#4caf50', 20);
@@ -627,7 +742,7 @@ class Game {
                 el.classList.add('filled');
             });
 
-            if (this.combo >= 2) {
+            if (this.combo >= 2 && this.currentBlankIndex < q.blanks.length - 1) {
                 this.comboDisplay.text = `${this.combo} COMBO! +${points}`;
                 this.comboDisplay.alpha = 1;
                 this.comboDisplay.y = this.canvas.height * 0.45;
@@ -635,18 +750,22 @@ class Game {
 
             this.currentBlankIndex++;
             if (this.currentBlankIndex >= q.blanks.length) {
-                this.results.push({ question: q, correct: true });
+                const qTime = Date.now() - this.questionStartTime;
+                this.questionTimes.push(qTime);
+                this.results.push({ question: q, correct: true, time: qTime });
                 this.questionTransition = true;
                 setTimeout(() => this.nextQuestion(), 1000);
             }
         } else {
             this.combo = 0;
             this.lives--;
+            this.damageTaken++;
             this.spawnExplosion(enemy.x, enemy.y, '#ff6b6b');
             this.spawnParticles(enemy.x, enemy.y, '#ff6b6b', 15);
 
             if (this.lives <= 0) {
-                this.results.push({ question: q, correct: false });
+                const qTime = Date.now() - this.questionStartTime;
+                this.results.push({ question: q, correct: false, time: qTime });
                 setTimeout(() => this.endGame(), 600);
             }
         }
@@ -691,7 +810,6 @@ class Game {
     isTableFormat(text) {
         const lines = text.split('\n').filter(l => l.trim());
         if (lines.length < 2) return false;
-        // ／を含む行が2行以上あり、それらの／の数が同じなら表形式
         const slashLines = lines.filter(l => (l.match(/／/g) || []).length >= 1);
         if (slashLines.length < 2) return false;
         const counts = slashLines.map(l => (l.match(/／/g) || []).length);
@@ -715,7 +833,6 @@ class Game {
 
     renderTableHTML(text, blanks, filled) {
         const allLines = text.split('\n').filter(l => l.trim());
-        // ／を含む行と含まない行（タイトル）を分離
         const titleLines = [];
         const tableLines = [];
         for (const line of allLines) {
@@ -729,7 +846,6 @@ class Game {
         }
 
         let html = '';
-        // タイトル行があれば先に表示
         if (titleLines.length > 0) {
             html += '<div class="q-table-title">' + titleLines.join('<br>') + '</div>';
         }
@@ -763,46 +879,157 @@ class Game {
         this.gameRunning = false;
         if (this.loopId) clearInterval(this.loopId);
 
+        const totalTime = Date.now() - this.gameStartTime;
+        const totalTimeSec = Math.floor(totalTime / 1000);
+
         document.getElementById('game-screen').classList.add('hidden');
         document.getElementById('result-screen').classList.remove('hidden');
 
         const correctCount = this.results.filter(r => r.correct).length;
         const totalAsked = this.results.length;
 
+        // === ボーナス計算 ===
+        let bonusDetails = [];
+
+        // タイムボーナス
+        let timeBonus = 0;
+        if (this.lives > 0) {
+            if (totalTimeSec <= 60) { timeBonus = 5000; }
+            else if (totalTimeSec <= 90) { timeBonus = 3000; }
+            else if (totalTimeSec <= 120) { timeBonus = 1500; }
+            else if (totalTimeSec <= 180) { timeBonus = 500; }
+            if (timeBonus > 0) bonusDetails.push({ label: 'TIME BONUS', value: timeBonus });
+        }
+
+        // ノーミスボーナス
+        let noMissBonus = 0;
+        if (this.damageTaken === 0 && this.lives > 0) {
+            noMissBonus = 3000;
+            bonusDetails.push({ label: 'NO MISS BONUS', value: noMissBonus });
+        }
+
+        // 精度ボーナス
+        let accuracyBonus = 0;
+        const accuracy = this.shotsFired > 0 ? this.shotsHit / this.shotsFired : 0;
+        if (accuracy >= 0.8 && this.shotsFired > 10) {
+            accuracyBonus = 2000;
+            bonusDetails.push({ label: `ACCURACY ${Math.floor(accuracy * 100)}%`, value: accuracyBonus });
+        } else if (accuracy >= 0.6 && this.shotsFired > 10) {
+            accuracyBonus = 800;
+            bonusDetails.push({ label: `ACCURACY ${Math.floor(accuracy * 100)}%`, value: accuracyBonus });
+        }
+
+        // パーフェクトボーナス
+        let perfectBonus = 0;
+        if (correctCount === this.questions.length && this.damageTaken === 0 && totalTimeSec <= 120) {
+            perfectBonus = 10000;
+            bonusDetails.push({ label: 'PERFECT!', value: perfectBonus });
+        }
+
+        const totalBonus = timeBonus + noMissBonus + accuracyBonus + perfectBonus;
+        const finalScore = this.score + totalBonus;
+        this.score = finalScore;
+
+        // セーブ
         if (this.playMode === 'sequential' && this.selectedCategory !== 'all' && this.lives > 0) {
             this.addClear(this.selectedCategory, this.setStart);
             const pool = this.getCategoryPool();
             let next = this.setStart + this.setSize;
             if (next >= pool.length) next = 0;
             this.saveProgress(this.selectedCategory, next);
+
+            // ランキング保存
+            const now = new Date();
+            const dateStr = `${now.getMonth() + 1}/${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
+            this.saveRanking(this.selectedCategory, this.setStart, {
+                date: dateStr,
+                score: finalScore,
+                time: totalTimeSec,
+                combo: this.maxCombo,
+                accuracy: Math.floor(accuracy * 100),
+                correct: correctCount,
+                total: this.questions.length
+            });
         }
 
+        // 結果表示
         const titleEl = document.getElementById('result-title');
         if (this.lives <= 0) {
             titleEl.textContent = 'GAME OVER';
             titleEl.style.color = '#ff6b6b';
+        } else if (perfectBonus > 0) {
+            titleEl.textContent = 'PERFECT!!';
+            titleEl.style.color = '#ffd700';
         } else if (correctCount === this.questions.length) {
-            titleEl.textContent = 'PERFECT CLEAR!';
+            titleEl.textContent = 'ALL CLEAR!';
             titleEl.style.color = '#ffd700';
         } else {
             titleEl.textContent = 'MISSION COMPLETE!';
             titleEl.style.color = '#4caf50';
         }
 
-        document.getElementById('result-score').innerHTML =
-            `SCORE: ${this.score}<br>MAX COMBO: ${this.maxCombo}<br>正解: ${correctCount} / ${totalAsked}`;
+        // スコア詳細
+        const min = Math.floor(totalTimeSec / 60);
+        const sec = totalTimeSec % 60;
+        let scoreHtml = `SCORE: ${finalScore}<br>`;
+        scoreHtml += `TIME: ${min}:${sec.toString().padStart(2, '0')}<br>`;
+        scoreHtml += `MAX COMBO: ${this.maxCombo}<br>`;
+        scoreHtml += `正解: ${correctCount} / ${totalAsked}`;
 
+        if (bonusDetails.length > 0) {
+            scoreHtml += '<div class="bonus-list">';
+            for (const b of bonusDetails) {
+                scoreHtml += `<div class="bonus-item">${b.label} <span class="bonus-value">+${b.value}</span></div>`;
+            }
+            scoreHtml += '</div>';
+        }
+
+        document.getElementById('result-score').innerHTML = scoreHtml;
+
+        // ランキング表示（順番モードのみ）
+        const rankingEl = document.getElementById('result-ranking');
+        if (rankingEl) {
+            if (this.playMode === 'sequential' && this.selectedCategory !== 'all') {
+                const rankings = this.getRankings(this.selectedCategory, this.setStart);
+                if (rankings.length > 0) {
+                    let rankHtml = '<h3 class="ranking-title">RANKING</h3>';
+                    rankHtml += '<div class="ranking-table">';
+                    rankings.forEach((r, i) => {
+                        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
+                        const rMin = Math.floor(r.time / 60);
+                        const rSec = r.time % 60;
+                        rankHtml += `<div class="ranking-row${r.score === finalScore && r.date === rankings.find(x => x.score === finalScore)?.date ? ' ranking-current' : ''}">`;
+                        rankHtml += `<span class="ranking-medal">${medal}</span>`;
+                        rankHtml += `<span class="ranking-score">${r.score}pt</span>`;
+                        rankHtml += `<span class="ranking-time">${rMin}:${rSec.toString().padStart(2, '0')}</span>`;
+                        rankHtml += `<span class="ranking-combo">x${r.combo}</span>`;
+                        rankHtml += `<span class="ranking-date">${r.date}</span>`;
+                        rankHtml += '</div>';
+                    });
+                    rankHtml += '</div>';
+                    rankingEl.innerHTML = rankHtml;
+                    rankingEl.classList.remove('hidden');
+                } else {
+                    rankingEl.classList.add('hidden');
+                }
+            } else {
+                rankingEl.classList.add('hidden');
+            }
+        }
+
+        // 問題詳細
         const detailEl = document.getElementById('result-detail');
         detailEl.innerHTML = '';
 
         const allQuestions = this.playMode === 'sequential' ? this.questions : null;
         const displayList = allQuestions || this.results.map(r => r.question);
-        const resultMap = new Map(this.results.map(r => [r.question, r.correct]));
+        const resultMap = new Map(this.results.map(r => [r.question, r]));
 
         displayList.forEach(q => {
             const div = document.createElement('div');
-            const wasAnswered = resultMap.has(q);
-            const correct = resultMap.get(q);
+            const result = resultMap.get(q);
+            const wasAnswered = !!result;
+            const correct = result ? result.correct : false;
 
             if (wasAnswered) {
                 div.className = `result-item ${correct ? 'correct' : 'wrong'}`;
@@ -811,7 +1038,16 @@ class Game {
             }
 
             const mark = wasAnswered ? (correct ? '○' : '×') : '−';
-            div.innerHTML = `<div class="result-source">${q.source}</div><span class="result-mark">${mark}</span>${this.buildFilledText(q)}`;
+            const diffLabel = this.getDifficultyLabel(q);
+            const diffClass = diffLabel === '激ムズ' ? 'diff-extreme' : diffLabel === '難' ? 'diff-hard' : 'diff-normal';
+
+            let timeStr = '';
+            if (result && result.time) {
+                const t = Math.floor(result.time / 1000);
+                timeStr = `<span class="result-time">${t}秒</span>`;
+            }
+
+            div.innerHTML = `<div class="result-source">${q.source} <span class="result-diff ${diffClass}">${diffLabel}</span>${timeStr}</div><span class="result-mark">${mark}</span>${this.buildFilledText(q)}`;
             detailEl.appendChild(div);
         });
     }

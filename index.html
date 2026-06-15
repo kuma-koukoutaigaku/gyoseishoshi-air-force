@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
     <div id="game-container">
@@ -35,28 +35,30 @@
 
         <div id="game-screen" class="hidden">
             <canvas id="game-canvas"></canvas>
+            <div id="question-area">
+                <div id="question-text"></div>
+            </div>
             <div id="hud">
                 <div id="score-display">SCORE: <span id="score">0</span></div>
+                <div id="timer-display"><span id="timer">0:00</span></div>
                 <div id="life-display">HP: <span id="lives"></span></div>
                 <div id="question-num">Q.<span id="q-current">1</span>/<span id="q-total">10</span></div>
                 <button id="home-btn">✕</button>
-            </div>
-            <div id="question-area">
-                <div id="question-text"></div>
             </div>
         </div>
 
         <div id="result-screen" class="hidden">
             <h2 id="result-title"></h2>
             <div id="result-score"></div>
+            <div id="result-ranking" class="hidden"></div>
             <div id="result-detail"></div>
             <button id="retry-btn">もう一度プレイ</button>
             <button id="back-btn">タイトルに戻る</button>
         </div>
     </div>
 
-    <script src="questions.js?v=3"></script>
-    <script src="custom_loader.js?v=3"></script>
-    <script src="game.js?v=3"></script>
+    <script src="questions.js?v=4"></script>
+    <script src="custom_loader.js?v=4"></script>
+    <script src="game.js?v=4"></script>
 </body>
 </html>
