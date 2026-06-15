@@ -446,15 +446,22 @@ class Game {
             this.wordPool.push({ text: decoy, isCorrect: false, blankIndex: -1 });
         });
 
+        const poolSize = this.wordPool.length;
+
+        // 単語数に応じてスポーン間隔を動的に設定
+        // 上限は高めに設定し、途切れなく流れるようにする
+        this.maxEnemiesOnScreen = Math.max(poolSize * 2, 8);
+        this.dynamicSpawnInterval = Math.max(60, 120 - poolSize * 4);
+
         this.wordPool = this.shuffle(this.wordPool);
         this.wordPoolIndex = 0;
         this.enemySpawnTimer = 0;
     }
 
     spawnEnemy() {
-        // 画面上の敵が8体以上ならスポーンしない
-        const activeEnemies = this.enemies.filter(e => !e.dying).length;
-        if (activeEnemies >= 8) return;
+        // 画面上部(y < 60)に単語がいたらスポーンしない（重なり防止）
+        const nearTop = this.enemies.some(e => !e.dying && e.y < 60);
+        if (nearTop) return;
 
         // プールを使い切ったら即リセット（同じ単語が複数出る）
         if (this.wordPoolIndex >= this.wordPool.length) {
@@ -547,7 +554,7 @@ class Game {
 
         if (!this.questionTransition) {
             this.enemySpawnTimer++;
-            const rate = Math.max(30, this.enemySpawnInterval - this.difficulty * 5);
+            const rate = Math.max(50, (this.dynamicSpawnInterval || 80) - this.difficulty * 2);
             if (this.enemySpawnTimer >= rate) {
                 this.spawnEnemy();
                 this.enemySpawnTimer = 0;
