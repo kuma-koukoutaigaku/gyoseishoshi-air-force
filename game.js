@@ -449,14 +449,13 @@ class Game {
         const poolSize = this.wordPool.length;
 
         // === 画面上の単語数ルール ===
-        // 6個以下:  同じ単語を2つずつ → 最大 poolSize×2 個
-        // 7〜11個:  全単語が画面上に出る → 最大 poolSize 個
-        // 12個以上: 常に流れ続ける → 最大12個
+        // 6個以下:  同じ単語を2つずつ出す（上限8個）
+        // 7〜11個:  全単語が画面上に出る
+        // 12個以上: 常に12個を流し続ける
         if (poolSize <= 6) {
-            // プール自体を2倍にして同じ単語が2つ出るようにする
             const original = [...this.wordPool];
             this.wordPool = [...original, ...original];
-            this.targetOnScreen = poolSize * 2;
+            this.targetOnScreen = Math.min(poolSize * 2, 8);
         } else if (poolSize <= 11) {
             this.targetOnScreen = poolSize;
         } else {
