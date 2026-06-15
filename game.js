@@ -367,6 +367,11 @@ class Game {
         this.questions = this.getQuestions();
         if (this.questions.length === 0) return;
 
+        // スコア正規化: どんなセットでも満点が約10000点になるように調整
+        this.totalBlanks = this.questions.reduce((sum, q) => sum + q.blanks.length, 0);
+        this.basePoints = Math.round(7000 / this.totalBlanks);  // 正解分の配分
+        this.speedBonusPerQ = Math.round(3000 / this.questions.length);  // 速度分の配分
+
         document.getElementById('title-screen').classList.add('hidden');
         document.getElementById('result-screen').classList.add('hidden');
         document.getElementById('game-screen').classList.remove('hidden');
@@ -739,22 +744,22 @@ class Game {
             this.combo++;
             if (this.combo > this.maxCombo) this.maxCombo = this.combo;
 
-            // スコア計算: ベース × コンボ倍率 × 難易度倍率
-            const diffMult = this.getDifficultyMultiplier(q);
-            const basePoints = 100;
+            // スコア計算: 正規化ベース × コンボ倍率
+            // basePointsはセット全体で7000点になるよう逆算済み
             const comboMult = Math.min(this.combo, 10);
-            const points = Math.floor(basePoints * comboMult * diffMult);
+            const points = Math.floor(this.basePoints * comboMult);
             this.score += points;
 
             // スピードボーナス（早く解くほど高得点、1秒ごとに差がつく）
+            // speedBonusPerQはセット全体で3000点になるよう逆算済み
             if (this.currentBlankIndex === q.blanks.length - 1) {
                 const qElapsed = (Date.now() - this.questionStartTime) / 1000;
-                // 制限時間: 穴の数に応じて設定（穴1=8秒, 穴2=11秒, ... 穴5=20秒）
                 const timeLimit = 5 + q.blanks.length * 3;
                 const remaining = timeLimit - qElapsed;
                 if (remaining > 0) {
-                    // 残り秒数 x 100 x 難易度倍率（1秒早いだけで100点以上の差）
-                    const speedBonus = Math.floor(remaining * 100 * diffMult);
+                    // 残り時間の割合 × この問題の配分（早いほど高い）
+                    const ratio = remaining / timeLimit;
+                    const speedBonus = Math.floor(this.speedBonusPerQ * ratio);
                     this.score += speedBonus;
                     this.comboDisplay.text = `SPEED! +${speedBonus}`;
                     this.comboDisplay.alpha = 1;
