@@ -34,7 +34,7 @@ class Game {
 
         // Lanes for non-overlapping spawn
         this.lanes = [];
-        this.laneCount = 7;
+        this.laneCount = 4;
 
         // Timing
         this.enemySpawnTimer = 0;
@@ -76,15 +76,13 @@ class Game {
         allBtn.textContent = '全分野';
         container.appendChild(allBtn);
 
-        // グループなし(問題集)を先に、グループあり(オリジナル等)を後に並べる
+        // 問題集(custom_以外)を全部フラットに並べ、オリジナル(custom_)だけ区切る
         const entries = Object.entries(CATEGORIES);
-        const noGroup = entries.filter(([, c]) => !c.group);
-        const grouped = entries.filter(([, c]) => c.group);
-        // グループ名でまとめる
-        const groupNames = [...new Set(grouped.map(([, c]) => c.group))];
+        const builtIn = entries.filter(([key]) => !key.startsWith('custom_'));
+        const custom = entries.filter(([key]) => key.startsWith('custom_'));
 
-        // グループなしのボタン
-        for (const [key, cat] of noGroup) {
+        // 問題集: 区切りなしでフラットに並べる
+        for (const [key, cat] of builtIn) {
             const btn = document.createElement('button');
             btn.className = 'category-btn';
             btn.dataset.category = key;
@@ -92,14 +90,14 @@ class Game {
             container.appendChild(btn);
         }
 
-        // グループごとにラベル + ボタン
-        for (const gName of groupNames) {
+        // オリジナル（スプレッドシートから読み込んだ問題）
+        if (custom.length > 0) {
             const label = document.createElement('div');
             label.className = 'category-group-label custom-group';
-            label.textContent = `── ${gName} ──`;
+            label.textContent = '── オリジナル ──';
             container.appendChild(label);
 
-            for (const [key, cat] of grouped.filter(([, c]) => c.group === gName)) {
+            for (const [key, cat] of custom) {
                 const btn = document.createElement('button');
                 btn.className = 'category-btn custom-category';
                 btn.dataset.category = key;
@@ -563,19 +561,19 @@ class Game {
         // === 画面上の単語数（同時に画面にいる最大数） ===
         const blanksCount = q.blanks.length;
         if (blanksCount <= 2) {
-            this.targetOnScreen = 5;
+            this.targetOnScreen = 3;
         } else if (blanksCount <= 4) {
-            this.targetOnScreen = 6;
+            this.targetOnScreen = 4;
         } else {
-            this.targetOnScreen = 8;
+            this.targetOnScreen = 5;
         }
 
         this.wordPool = this.shuffle(this.wordPool);
         this.wordPoolIndex = 0;
 
         // 最初は空。スポーンタイマーで1個ずつ画面外(上)から出す
-        this.spawnTimer = 0;
-        this.spawnInterval = 30; // 0.5秒ごとに1個ずつ登場（60fps基準）
+        this.spawnTimer = -90; // 最初1.5秒は何も出さない（マイナス値で遅延）
+        this.spawnInterval = 70; // 約1.2秒ごとに1個ずつ登場（60fps基準）
     }
 
     // プールから次の単語を取得（使い切ったらリシャッフル）
@@ -602,11 +600,11 @@ class Game {
 
     // 既存の単語から最も離れたレーンを選ぶ
     pickBestLane() {
-        // 画面上半分にいる単語のx座標を集める
+        // 画面上部30%にいる単語のx座標を集める（新スポーンと近いY位置の単語）
         const occupied = [];
         for (const e of this.enemies) {
             if (e.dying) continue;
-            if (e.y < this.canvas.height * 0.4) {
+            if (e.y < this.canvas.height * 0.3) {
                 occupied.push(e.x);
             }
         }
@@ -635,14 +633,16 @@ class Game {
         this.ctx.font = 'bold 15px "Hiragino Kaku Gothic ProN", sans-serif';
         const textW = this.ctx.measureText(wordData.text).width + 40;
         const x = this.pickBestLane();
+        // スポーン位置を少しランダムにずらして縦の重なりを防ぐ
+        const startY = -30 - Math.random() * 30;
         this.enemies.push({
             ...wordData,
             x: x,
-            y: -40,
+            y: startY,
             width: textW,
             hp: 2,
             maxHp: 2,
-            speedMult: 0.7 + Math.random() * 0.3,
+            speedMult: 0.6 + Math.random() * 0.5,
             dying: false,
             dyingTimer: 0,
             flash: 0
@@ -696,8 +696,13 @@ class Game {
             if (aliveCount < this.targetOnScreen) {
                 this.spawnTimer++;
                 if (this.spawnTimer >= this.spawnInterval) {
-                    this.spawnTimer = 0;
-                    this.spawnNewEnemy();
+                    // 上部に単語が密集していたらスポーンを遅延
+                    const topArea = this.enemies.filter(e => !e.dying && e.y < this.canvas.height * 0.25);
+                    if (topArea.length < 2) {
+                        this.spawnTimer = 0;
+                        this.spawnNewEnemy();
+                    }
+                    // topArea >= 2 なら spawnTimer はそのまま（次フレームで再チェック）
                 }
             }
         }
