@@ -449,9 +449,16 @@ class Game {
         const poolSize = this.wordPool.length;
 
         // 単語数に応じてスポーン間隔を動的に設定
-        // 上限は高めに設定し、途切れなく流れるようにする
-        this.maxEnemiesOnScreen = Math.max(poolSize * 2, 8);
-        this.dynamicSpawnInterval = Math.max(60, 120 - poolSize * 4);
+        // 少ない(2-4): 間隔短め→画面に同じ単語が複数出る
+        // 中程度(5-8): バランス型
+        // 多い(9+):    間隔やや広め→途切れなく次々流れる
+        if (poolSize <= 4) {
+            this.dynamicSpawnInterval = 35;
+        } else if (poolSize <= 8) {
+            this.dynamicSpawnInterval = 50;
+        } else {
+            this.dynamicSpawnInterval = 60;
+        }
 
         this.wordPool = this.shuffle(this.wordPool);
         this.wordPoolIndex = 0;
@@ -497,6 +504,10 @@ class Game {
         const laneIdx = laneOptions[Math.floor(Math.random() * laneOptions.length)];
         const x = this.lanes[laneIdx];
 
+        // 速度にバラつきを持たせる（0.6x〜1.6xの範囲）
+        // 遅い単語・速い単語が混在して面白みが出る
+        const speedMult = 0.6 + Math.random() * 1.0;
+
         this.enemies.push({
             ...wordData,
             x,
@@ -504,7 +515,7 @@ class Game {
             width: textW,
             hp: 2,
             maxHp: 2,
-            speedBonus: Math.random() * 0.15,
+            speedMult,
             dying: false,
             dyingTimer: 0,
             flash: 0
@@ -589,7 +600,7 @@ class Game {
             }
         }
 
-        const fallSpeed = 0.7 + this.difficulty * 0.12;
+        const baseFallSpeed = 0.8 + this.difficulty * 0.1;
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const e = this.enemies[i];
 
@@ -601,17 +612,17 @@ class Game {
                 continue;
             }
 
-            e.y += fallSpeed + e.speedBonus;
+            e.y += baseFallSpeed * e.speedMult;
 
             if (e.y > this.canvas.height + 30) {
                 // 正解の単語で、まだその穴が埋まっていないならループ（上に戻す）
                 if (e.isCorrect && e.blankIndex >= this.currentBlankIndex) {
                     e.y = -30;
                     e.hp = e.maxHp;
-                    // レーンを再割り当て
+                    // レーンと速度を再割り当て
                     const laneIdx = Math.floor(Math.random() * this.lanes.length);
                     e.x = this.lanes[laneIdx];
-                    e.speedBonus = Math.random() * 0.15;
+                    e.speedMult = 0.6 + Math.random() * 1.0;
                 } else {
                     // デコイや既に埋まった正解は削除
                     this.enemies.splice(i, 1);
