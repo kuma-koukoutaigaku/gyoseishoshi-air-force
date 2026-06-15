@@ -1462,12 +1462,5 @@ if (typeof customLoader !== 'undefined' && CUSTOM_CONFIG.sheetId) {
             game.buildCategoryButtons();
             game.buildSetButtons();
         }
-        // デバッグ情報を画面に表示
-        const dbg = document.createElement('p');
-        dbg.style.cssText = 'color:#f88;font-size:0.55rem;margin:4px;word-break:break-all;';
-        const customKeys = Object.keys(CATEGORIES).filter(k => k.startsWith('custom_'));
-        const allKeys = Object.keys(CATEGORIES);
-        dbg.textContent = `[DBG] all=${allKeys.length} custom=${customKeys.length} keys=${customKeys.join(',')} reg=${(customLoader._registeredKeys||[]).join(',')}`;
-        document.getElementById('title-screen').appendChild(dbg);
     });
 }
