@@ -37,7 +37,7 @@ class Game {
 
         // Timing
         this.enemySpawnTimer = 0;
-        this.enemySpawnInterval = 120;
+        this.enemySpawnInterval = 50;
         this.difficulty = 1;
         this.gameRunning = false;
         this.loopId = null;
@@ -452,11 +452,15 @@ class Game {
     }
 
     spawnEnemy() {
-        if (this.wordPoolIndex >= this.wordPool.length) return;
-
-        // 画面上の敵が6体以上ならスポーンしない
+        // 画面上の敵が8体以上ならスポーンしない
         const activeEnemies = this.enemies.filter(e => !e.dying).length;
-        if (activeEnemies >= 6) return;
+        if (activeEnemies >= 8) return;
+
+        // プールを使い切ったら即リセット（同じ単語が複数出る）
+        if (this.wordPoolIndex >= this.wordPool.length) {
+            this.wordPool = this.shuffle(this.wordPool);
+            this.wordPoolIndex = 0;
+        }
 
         const wordData = this.wordPool[this.wordPoolIndex];
         this.wordPoolIndex++;
@@ -543,7 +547,7 @@ class Game {
 
         if (!this.questionTransition) {
             this.enemySpawnTimer++;
-            const rate = Math.max(60, this.enemySpawnInterval - this.difficulty * 8);
+            const rate = Math.max(30, this.enemySpawnInterval - this.difficulty * 5);
             if (this.enemySpawnTimer >= rate) {
                 this.spawnEnemy();
                 this.enemySpawnTimer = 0;
@@ -608,25 +612,7 @@ class Game {
             }
         }
 
-        // プール内の単語を全部出し切ったらデコイを再補充
-        if (this.wordPoolIndex >= this.wordPool.length && !this.questionTransition) {
-            const q = this.questions[this.currentQuestionIndex];
-            const neededBlanks = q.blanks.slice(this.currentBlankIndex);
-
-            // デコイだけのプールを作り直す（正解はループで画面に残るので不要）
-            const decoyPool = this.wordPool.filter(w => !w.isCorrect);
-            // 正解がまだ画面上にいなければ正解も追加
-            const correctOnScreen = this.enemies.some(e =>
-                e.isCorrect && !e.dying && neededBlanks.includes(e.text)
-            );
-            if (!correctOnScreen) {
-                const correctPool = this.wordPool.filter(w => w.isCorrect && neededBlanks.includes(w.text));
-                this.wordPool = this.shuffle([...decoyPool, ...correctPool]);
-            } else {
-                this.wordPool = this.shuffle(decoyPool);
-            }
-            this.wordPoolIndex = 0;
-        }
+        // （プールの再シャッフルはspawnEnemy内で自動的に行われる）
 
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];

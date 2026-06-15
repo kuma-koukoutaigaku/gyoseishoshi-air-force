@@ -305,10 +305,10 @@ body {
     padding: 0;
 }
 
-/* 問題エリア - 画面最上部（HUDのスペースなし） */
+/* 問題エリア - 上部に隙間を空けて単語の出現を見えるようにする */
 #question-area {
     position: absolute;
-    top: 0;
+    top: 36px;
     left: 0;
     right: 0;
     padding: 10px 8px;
