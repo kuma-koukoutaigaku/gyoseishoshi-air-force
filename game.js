@@ -227,11 +227,59 @@ class Game {
 
     getCategoryPool() {
         const pool = this.getRawCategoryPool();
-        // 難易度フィルタ: 難易度プロパティがある問題はフィルタ、ない問題は常に含む
-        return pool.filter(q => {
-            if (!q.difficulty) return true; // 既存問題(questions.js)は難易度なし→常に表示
-            return q.difficulty === this.selectedDifficulty;
-        });
+        const hasDiffQuestions = pool.some(q => q.difficulty);
+
+        if (!hasDiffQuestions) {
+            // 既存問題(questions.js)のみ → そのまま返す
+            return pool;
+        }
+
+        // 難易度バリエーションがある場合:
+        // sourceで同じ問題をグループ化し、選択中の難易度のバージョンを優先
+        // なければフォールバック(普通→難→激ムズの順)
+        const diffPriority = { '普通': 0, '難': 1, '激ムズ': 2 };
+        const targetDiff = this.selectedDifficulty;
+
+        // sourceごとにバリエーションを集める
+        const groups = new Map(); // source → { 普通: q, 難: q, 激ムズ: q }
+        const noSourceQuestions = []; // sourceがない問題はそのまま含める
+        const insertionOrder = []; // 最初に出現した順番を保持
+
+        for (const q of pool) {
+            const diff = q.difficulty || '普通';
+            const src = q.source;
+
+            if (!src) {
+                noSourceQuestions.push(q);
+                continue;
+            }
+
+            if (!groups.has(src)) {
+                groups.set(src, {});
+                insertionOrder.push(src);
+            }
+            // 同じ難易度が既にあれば上書きしない（最初のものを採用）
+            if (!groups.get(src)[diff]) {
+                groups.get(src)[diff] = q;
+            }
+        }
+
+        // 各グループから選択中の難易度を取得、なければフォールバック
+        const result = [];
+        for (const src of insertionOrder) {
+            const variants = groups.get(src);
+            if (variants[targetDiff]) {
+                result.push(variants[targetDiff]);
+            } else if (variants['普通']) {
+                result.push(variants['普通']);
+            } else {
+                // どれか1つを返す
+                const any = Object.values(variants)[0];
+                if (any) result.push(any);
+            }
+        }
+
+        return result.concat(noSourceQuestions);
     }
 
     initStars() {
