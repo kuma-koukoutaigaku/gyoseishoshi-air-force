@@ -285,7 +285,6 @@ class CustomQuestionLoader {
             const key = 'custom_' + this.toSafeKey(catName);
 
             if (QUESTIONS[key]) {
-                // 同じ分野名が既にあれば統合（別タブから同じ分野名の問題が来た場合）
                 QUESTIONS[key] = QUESTIONS[key].concat(questions);
             } else {
                 CATEGORIES[key] = {
