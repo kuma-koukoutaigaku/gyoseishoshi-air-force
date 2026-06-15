@@ -600,15 +600,44 @@ class Game {
         return this.wordPool[this.wordPoolIndex++];
     }
 
+    // 既存の単語から最も離れたレーンを選ぶ
+    pickBestLane() {
+        // 画面上半分にいる単語のx座標を集める
+        const occupied = [];
+        for (const e of this.enemies) {
+            if (e.dying) continue;
+            if (e.y < this.canvas.height * 0.4) {
+                occupied.push(e.x);
+            }
+        }
+        if (occupied.length === 0) {
+            return this.lanes[Math.floor(Math.random() * this.lanes.length)];
+        }
+        // 各レーンについて、一番近い単語との距離を計算し、最も遠いレーンを選ぶ
+        let bestLane = this.lanes[0];
+        let bestDist = 0;
+        for (const lx of this.lanes) {
+            let minDist = Infinity;
+            for (const ox of occupied) {
+                minDist = Math.min(minDist, Math.abs(lx - ox));
+            }
+            if (minDist > bestDist) {
+                bestDist = minDist;
+                bestLane = lx;
+            }
+        }
+        return bestLane;
+    }
+
     // 新しい単語を1個、画面外(上)に生成
     spawnNewEnemy() {
         const wordData = this.getNextPoolWord();
         this.ctx.font = 'bold 15px "Hiragino Kaku Gothic ProN", sans-serif';
         const textW = this.ctx.measureText(wordData.text).width + 40;
-        const laneIdx = Math.floor(Math.random() * this.lanes.length);
+        const x = this.pickBestLane();
         this.enemies.push({
             ...wordData,
-            x: this.lanes[laneIdx],
+            x: x,
             y: -40,
             width: textW,
             hp: 2,
