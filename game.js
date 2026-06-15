@@ -448,16 +448,12 @@ class Game {
 
         const poolSize = this.wordPool.length;
 
-        // === 画面上の単語数ルール（常に流れ続ける） ===
-        // 6個以下:  常に2個が見える → 1個落ちたらすぐ次が出る
-        // 7〜11個:  常にpoolの半分が見える
-        // 12個以上: 常に8個が見える
-        if (poolSize <= 6) {
-            this.targetOnScreen = 2;
-        } else if (poolSize <= 11) {
-            this.targetOnScreen = Math.ceil(poolSize / 2);
-        } else {
+        // === 画面上の単語数ルール ===
+        const blanksCount = q.blanks.length;
+        if (blanksCount <= 4) {
             this.targetOnScreen = 8;
+        } else {
+            this.targetOnScreen = 12;
         }
 
         this.wordPool = this.shuffle(this.wordPool);
