@@ -33,7 +33,7 @@ class Game {
 
         // Lanes for non-overlapping spawn
         this.lanes = [];
-        this.laneCount = 5;
+        this.laneCount = 7;
 
         // Timing
         this.enemySpawnTimer = 0;
@@ -448,9 +448,20 @@ class Game {
 
         const poolSize = this.wordPool.length;
 
-        // 画面上に同時に表示する単語数の目標
-        // プールサイズに比例させつつ、最低5個は画面にいるようにする
-        this.targetOnScreen = Math.max(5, Math.min(poolSize, 8));
+        // === 画面上の単語数ルール ===
+        // 6個以下:  同じ単語を2つずつ → 最大 poolSize×2 個
+        // 7〜11個:  全単語が画面上に出る → 最大 poolSize 個
+        // 12個以上: 常に流れ続ける → 最大12個
+        if (poolSize <= 6) {
+            // プール自体を2倍にして同じ単語が2つ出るようにする
+            const original = [...this.wordPool];
+            this.wordPool = [...original, ...original];
+            this.targetOnScreen = poolSize * 2;
+        } else if (poolSize <= 11) {
+            this.targetOnScreen = poolSize;
+        } else {
+            this.targetOnScreen = 12;
+        }
 
         this.wordPool = this.shuffle(this.wordPool);
         this.wordPoolIndex = 0;
@@ -465,10 +476,10 @@ class Game {
         if (activeCount >= target) return;
 
         // 画面上部(y < 80)に単語がいたら重なり防止で待つ
-        // 直前にスポーンした単語と重ならないよう最低限の間隔
+        // 直前にスポーンした単語と同じレーンで重ならないよう最低限の間隔
         // ただし画面に0個なら即スポーン（途切れ防止）
         if (activeCount > 0) {
-            const nearTop = this.enemies.some(e => !e.dying && e.y < 50);
+            const nearTop = this.enemies.some(e => !e.dying && e.y < 45);
             if (nearTop) return;
         }
 
