@@ -448,18 +448,16 @@ class Game {
 
         const poolSize = this.wordPool.length;
 
-        // === 画面上の単語数ルール ===
-        // 6個以下:  同じ単語を2つずつ出す（上限8個）
-        // 7〜11個:  全単語が画面上に出る
-        // 12個以上: 常に12個を流し続ける
+        // === 画面上の単語数ルール（常に流れ続ける） ===
+        // 6個以下:  常に2個が見える → 1個落ちたらすぐ次が出る
+        // 7〜11個:  常にpoolの半分が見える
+        // 12個以上: 常に8個が見える
         if (poolSize <= 6) {
-            const original = [...this.wordPool];
-            this.wordPool = [...original, ...original];
-            this.targetOnScreen = Math.min(poolSize * 2, 8);
+            this.targetOnScreen = 2;
         } else if (poolSize <= 11) {
-            this.targetOnScreen = poolSize;
+            this.targetOnScreen = Math.ceil(poolSize / 2);
         } else {
-            this.targetOnScreen = 12;
+            this.targetOnScreen = 8;
         }
 
         this.wordPool = this.shuffle(this.wordPool);
@@ -474,12 +472,13 @@ class Game {
         // 目標数に達していたらスポーンしない
         if (activeCount >= target) return;
 
-        // 画面上部(y < 80)に単語がいたら重なり防止で待つ
-        // 直前にスポーンした単語と同じレーンで重ならないよう最低限の間隔
+        // 単語を画面上に均等配置するため、前の単語が十分離れるまで待つ
+        // 間隔 = 画面高さ ÷ target数（target=2なら画面半分、target=8なら1/8）
         // ただし画面に0個なら即スポーン（途切れ防止）
         if (activeCount > 0) {
-            const nearTop = this.enemies.some(e => !e.dying && e.y < 45);
-            if (nearTop) return;
+            const spacing = Math.max(80, this.canvas.height / target);
+            const tooClose = this.enemies.some(e => !e.dying && e.y < spacing);
+            if (tooClose) return;
         }
 
         // プールを使い切ったら即リセット
