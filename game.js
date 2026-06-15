@@ -446,8 +446,6 @@ class Game {
             this.wordPool.push({ text: decoy, isCorrect: false, blankIndex: -1 });
         });
 
-        const poolSize = this.wordPool.length;
-
         // === 画面上の単語数ルール ===
         const blanksCount = q.blanks.length;
         if (blanksCount <= 4) {
@@ -458,92 +456,52 @@ class Game {
 
         this.wordPool = this.shuffle(this.wordPool);
         this.wordPoolIndex = 0;
-        this.enemySpawnTimer = 0;
+
+        // === 最初から画面全体にtarget数の単語を均等配置 ===
+        const target = this.targetOnScreen;
+        const gap = this.canvas.height / target;
+        this.ctx.font = 'bold 15px "Hiragino Kaku Gothic ProN", sans-serif';
+
+        for (let i = 0; i < target; i++) {
+            const wordData = this.getNextPoolWord();
+            const textW = this.ctx.measureText(wordData.text).width + 40;
+            const laneIdx = Math.floor(Math.random() * this.lanes.length);
+
+            this.enemies.push({
+                ...wordData,
+                x: this.lanes[laneIdx],
+                y: gap * i,
+                width: textW,
+                hp: 2,
+                maxHp: 2,
+                speedMult: 0.7 + Math.random() * 0.3,
+                dying: false,
+                dyingTimer: 0,
+                flash: 0
+            });
+        }
     }
 
-    spawnEnemy() {
-        const activeCount = this.enemies.filter(e => !e.dying).length;
-        const target = this.targetOnScreen || 2;
-
-        // 目標数に達していたらスポーンしない
-        if (activeCount >= target) return;
-
-        // 単語を画面上に均等配置するため、前の単語が十分離れるまで待つ
-        // 間隔 = 画面高さ ÷ target数（target=2なら画面半分、target=8なら1/8）
-        // ただし画面に0個なら即スポーン（途切れ防止）
-        if (activeCount > 0) {
-            // target少(≤4): 画面を均等割り → ゆったり流れる
-            // target多(>4): 最小間隔だけ → 密に次々流れる
-            const spacing = target <= 4
-                ? this.canvas.height / target
-                : 45;
-            const tooClose = this.enemies.some(e => !e.dying && e.y < spacing);
-            if (tooClose) return;
-        }
-
-        // プールを使い切ったら即リセット
-        // 正解が後ろに偏らないよう、次に必要な正解を前半に配置
+    // プールから次の単語を取得（使い切ったらリシャッフル）
+    getNextPoolWord() {
         if (this.wordPoolIndex >= this.wordPool.length) {
             this.wordPool = this.shuffle(this.wordPool);
             this.wordPoolIndex = 0;
 
-            // 現在の正解が前半にあるか確認、なければ入れ替え
+            // 正解を前半に配置
             const q = this.questions[this.currentQuestionIndex];
             const needed = q.blanks[this.currentBlankIndex];
             if (needed) {
                 const half = Math.floor(this.wordPool.length / 2);
-                const correctIdx = this.wordPool.findIndex(w => w.isCorrect && w.text === needed);
-                if (correctIdx >= half) {
+                const idx = this.wordPool.findIndex(w => w.isCorrect && w.text === needed);
+                if (idx >= half) {
                     const swapIdx = Math.floor(Math.random() * half);
-                    [this.wordPool[swapIdx], this.wordPool[correctIdx]] =
-                        [this.wordPool[correctIdx], this.wordPool[swapIdx]];
+                    [this.wordPool[swapIdx], this.wordPool[idx]] =
+                        [this.wordPool[idx], this.wordPool[swapIdx]];
                 }
             }
         }
-
-        const wordData = this.wordPool[this.wordPoolIndex];
-        this.wordPoolIndex++;
-
-        this.ctx.font = 'bold 15px "Hiragino Kaku Gothic ProN", sans-serif';
-        const textW = this.ctx.measureText(wordData.text).width + 40;
-
-        const occupiedLanes = new Set();
-        for (const e of this.enemies) {
-            if (e.y < 200 && !e.dying) {
-                let closest = 0;
-                let minDist = Infinity;
-                for (let li = 0; li < this.lanes.length; li++) {
-                    const d = Math.abs(e.x - this.lanes[li]);
-                    if (d < minDist) { minDist = d; closest = li; }
-                }
-                occupiedLanes.add(closest);
-            }
-        }
-
-        let laneOptions = [];
-        for (let i = 0; i < this.lanes.length; i++) {
-            if (!occupiedLanes.has(i)) laneOptions.push(i);
-        }
-        if (laneOptions.length === 0) laneOptions = this.lanes.map((_, i) => i);
-
-        const laneIdx = laneOptions[Math.floor(Math.random() * laneOptions.length)];
-        const x = this.lanes[laneIdx];
-
-        // 速度にバラつきを持たせる（0.7x〜1.0xの範囲）
-        const speedMult = 0.7 + Math.random() * 0.3;
-
-        this.enemies.push({
-            ...wordData,
-            x,
-            y: -30,
-            width: textW,
-            hp: 2,
-            maxHp: 2,
-            speedMult,
-            dying: false,
-            dyingTimer: 0,
-            flash: 0
-        });
+        return this.wordPool[this.wordPoolIndex++];
     }
 
     updateHUD() {
@@ -587,14 +545,8 @@ class Game {
             }
         }
 
-        if (!this.questionTransition) {
-            this.enemySpawnTimer++;
-            // 毎10フレームでスポーン試行（実際の制御はspawnEnemy内のtargetで判定）
-            if (this.enemySpawnTimer >= 10) {
-                this.spawnEnemy();
-                this.enemySpawnTimer = 0;
-            }
-        }
+        // prepareWords() で初期配置済み、フレームアウト時に in-place 置換するため
+        // スポーンタイマーは不要
 
         for (let i = this.bullets.length - 1; i >= 0; i--) {
             const b = this.bullets[i];
@@ -631,7 +583,22 @@ class Game {
             if (e.dying) {
                 e.dyingTimer++;
                 if (e.dyingTimer > 20) {
-                    this.enemies.splice(i, 1);
+                    // 撃破後も画面上の単語数を維持 → 新しい単語で上書き
+                    const wordData = this.getNextPoolWord();
+                    e.text = wordData.text;
+                    e.isCorrect = wordData.isCorrect;
+                    e.blankIndex = wordData.blankIndex;
+                    e.y = -30;
+                    e.hp = 2;
+                    e.maxHp = 2;
+                    e.speedMult = 0.7 + Math.random() * 0.3;
+                    e.dying = false;
+                    e.dyingTimer = 0;
+                    e.flash = 0;
+                    const laneIdx = Math.floor(Math.random() * this.lanes.length);
+                    e.x = this.lanes[laneIdx];
+                    this.ctx.font = 'bold 15px "Hiragino Kaku Gothic ProN", sans-serif';
+                    e.width = this.ctx.measureText(e.text).width + 40;
                 }
                 continue;
             }
@@ -639,13 +606,24 @@ class Game {
             e.y += baseFallSpeed * e.speedMult;
 
             if (e.y > this.canvas.height + 30) {
-                // 画面外に出たら削除（正解もデコイも同じ扱い）
-                // プールが循環するので正解は自然にまた出てくる
-                this.enemies.splice(i, 1);
+                // フレームアウト → 即座にプールの次の単語で上書き（隙間なし）
+                const wordData = this.getNextPoolWord();
+                e.text = wordData.text;
+                e.isCorrect = wordData.isCorrect;
+                e.blankIndex = wordData.blankIndex;
+                e.y = -30;
+                e.hp = 2;
+                e.maxHp = 2;
+                e.speedMult = 0.7 + Math.random() * 0.3;
+                e.dying = false;
+                e.dyingTimer = 0;
+                e.flash = 0;
+                const laneIdx = Math.floor(Math.random() * this.lanes.length);
+                e.x = this.lanes[laneIdx];
+                this.ctx.font = 'bold 15px "Hiragino Kaku Gothic ProN", sans-serif';
+                e.width = this.ctx.measureText(e.text).width + 40;
             }
         }
-
-        // （プールの再シャッフルはspawnEnemy内で自動的に行われる）
 
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
