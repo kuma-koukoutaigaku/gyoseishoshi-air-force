@@ -504,6 +504,31 @@ class Game {
         return this.wordPool[this.wordPoolIndex++];
     }
 
+    // 画面上半分で一番隙間が広い場所のY座標を返す
+    // → 全部y=0に出すと「ここから2巡目」感が出るので、隙間を埋める
+    findLargestGapY(excludeEnemy) {
+        const halfH = this.canvas.height * 0.5;
+        const ys = [0]; // 上端を境界に
+        for (const e of this.enemies) {
+            if (e === excludeEnemy) continue;
+            if (e.dying) continue;
+            if (e.y >= 0 && e.y <= halfH) ys.push(e.y);
+        }
+        ys.push(halfH); // 下限を境界に
+        ys.sort((a, b) => a - b);
+
+        let bestMid = 0;
+        let bestGap = 0;
+        for (let i = 0; i < ys.length - 1; i++) {
+            const gap = ys[i + 1] - ys[i];
+            if (gap > bestGap) {
+                bestGap = gap;
+                bestMid = ys[i] + gap / 2;
+            }
+        }
+        return Math.max(0, bestMid);
+    }
+
     updateHUD() {
         document.getElementById('score').textContent = this.score;
         const livesEl = document.getElementById('lives');
@@ -583,12 +608,12 @@ class Game {
             if (e.dying) {
                 e.dyingTimer++;
                 if (e.dyingTimer > 20) {
-                    // 撃破後も画面上の単語数を維持 → 画面最上部に即出現
+                    // 撃破後も画面上の単語数を維持 → 隙間が最大の場所に出現
                     const wordData = this.getNextPoolWord();
                     e.text = wordData.text;
                     e.isCorrect = wordData.isCorrect;
                     e.blankIndex = wordData.blankIndex;
-                    e.y = 0;
+                    e.y = this.findLargestGapY(e);
                     e.hp = 2;
                     e.maxHp = 2;
                     e.speedMult = 0.7 + Math.random() * 0.3;
@@ -606,12 +631,12 @@ class Game {
             e.y += baseFallSpeed * e.speedMult;
 
             if (e.y > this.canvas.height + 30) {
-                // フレームアウト → 画面最上部に即出現（待ち時間ゼロ）
+                // フレームアウト → 隙間が最大の場所に即出現（巡目の境界が見えない）
                 const wordData = this.getNextPoolWord();
                 e.text = wordData.text;
                 e.isCorrect = wordData.isCorrect;
                 e.blankIndex = wordData.blankIndex;
-                e.y = 0;
+                e.y = this.findLargestGapY(e);
                 e.hp = 2;
                 e.maxHp = 2;
                 e.speedMult = 0.7 + Math.random() * 0.3;
