@@ -554,6 +554,7 @@ class Game {
 
     prepareWords() {
         const q = this.questions[this.currentQuestionIndex];
+        this.generateLanePattern(); // 問題ごとにレーン順を新規生成
         this.wordPool = [];
 
         q.blanks.forEach((blank, i) => {
@@ -585,10 +586,7 @@ class Game {
 
         const avgSpeed = 0.9 * 0.95;
         const gameAreaHeight = this.canvas.height;
-        // 選択肢が少ない(6以下、2倍化済み)→ 詰めて出す
-        // 選択肢が多い(7以上)→ 画面1枚分に均等配置
-        const spacingMult = poolSize <= 6 ? 1.5 : 1;
-        const verticalSpacing = gameAreaHeight / (this.targetOnScreen * spacingMult);
+        const verticalSpacing = gameAreaHeight / this.targetOnScreen;
         this.spawnInterval = Math.round(verticalSpacing / avgSpeed);
         this.spawnTimer = 0; // すぐ最初の1個を出す
     }
@@ -615,33 +613,33 @@ class Game {
         return this.wordPool[this.wordPoolIndex++];
     }
 
-    // 既存の単語から最も離れたレーンを選ぶ
+    // レーン順パターンを生成（問題開始時に呼ぶ）
+    generateLanePattern() {
+        // シャッフルしたレーン順を複数セット作って連結（30分以上分）
+        // 1セット = laneCount個のレーンをシャッフル
+        // 十分な数のセットを作っておく
+        this.lanePattern = [];
+        this.lanePatternIndex = 0;
+        const sets = 200; // 200セット分（1000個以上のスポーンに対応）
+        for (let s = 0; s < sets; s++) {
+            const order = [...Array(this.laneCount).keys()];
+            // Fisher-Yatesシャッフル
+            for (let i = order.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [order[i], order[j]] = [order[j], order[i]];
+            }
+            for (const idx of order) {
+                this.lanePattern.push(this.lanes[idx]);
+            }
+        }
+    }
+
+    // パターンに従って次のレーンを返す
     pickBestLane() {
-        // 画面上の全単語のx座標と幅を集める
-        const occupied = [];
-        for (const e of this.enemies) {
-            if (e.dying) continue;
-            occupied.push({ x: e.x, w: e.width || 100 });
+        if (!this.lanePattern || this.lanePatternIndex >= this.lanePattern.length) {
+            this.generateLanePattern();
         }
-        if (occupied.length === 0) {
-            return this.lanes[Math.floor(Math.random() * this.lanes.length)];
-        }
-        // 各レーンについて、既存単語の矩形と重ならない距離を計算
-        let bestLane = this.lanes[0];
-        let bestDist = 0;
-        for (const lx of this.lanes) {
-            let minDist = Infinity;
-            for (const o of occupied) {
-                // 単語の幅を考慮した距離（中心同士の距離 - 幅の半分）
-                const dist = Math.abs(lx - o.x) - o.w / 2;
-                minDist = Math.min(minDist, dist);
-            }
-            if (minDist > bestDist) {
-                bestDist = minDist;
-                bestLane = lx;
-            }
-        }
-        return bestLane;
+        return this.lanePattern[this.lanePatternIndex++];
     }
 
     // 新しい単語を1個、画面外(上)に生成
