@@ -76,12 +76,11 @@ class Game {
         allBtn.textContent = '全分野';
         container.appendChild(allBtn);
 
-        // 問題集(custom_以外)を全部フラットに並べ、オリジナル(custom_)だけ区切る
+        // 問題集(custom_以外)をフラットに、カスタム(custom_)はgroupで区切る
         const entries = Object.entries(CATEGORIES);
         const builtIn = entries.filter(([key]) => !key.startsWith('custom_'));
         const custom = entries.filter(([key]) => key.startsWith('custom_'));
 
-        // 問題集: 区切りなしでフラットに並べる
         for (const [key, cat] of builtIn) {
             const btn = document.createElement('button');
             btn.className = 'category-btn';
@@ -90,14 +89,20 @@ class Game {
             container.appendChild(btn);
         }
 
-        // オリジナル（スプレッドシートから読み込んだ問題）
-        if (custom.length > 0) {
+        // カスタム問題をgroupごとに区切って表示
+        const groups = new Map();
+        for (const [key, cat] of custom) {
+            const groupName = cat.group || 'オリジナル';
+            if (!groups.has(groupName)) groups.set(groupName, []);
+            groups.get(groupName).push([key, cat]);
+        }
+        for (const [groupName, items] of groups) {
             const label = document.createElement('div');
             label.className = 'category-group-label custom-group';
-            label.textContent = '── オリジナル ──';
+            label.textContent = `── ${groupName} ──`;
             container.appendChild(label);
 
-            for (const [key, cat] of custom) {
+            for (const [key, cat] of items) {
                 const btn = document.createElement('button');
                 btn.className = 'category-btn custom-category';
                 btn.dataset.category = key;
@@ -578,11 +583,12 @@ class Game {
         this.wordPool = this.shuffle(this.wordPool);
         this.wordPoolIndex = 0;
 
-        // スポーン間隔を落下速度と画面サイズから計算
-        // 画面を targetOnScreen 等分した間隔で落とせば均等に分布する
-        const avgSpeed = (0.8 + this.difficulty * 0.1) * 0.85; // 平均落下速度
-        const gameAreaHeight = this.canvas.height; // ゲーム描画エリアの高さ
-        const verticalSpacing = gameAreaHeight / this.targetOnScreen;
+        const avgSpeed = 0.9 * 0.95;
+        const gameAreaHeight = this.canvas.height;
+        // 選択肢が少ない(6以下、2倍化済み)→ 詰めて出す
+        // 選択肢が多い(7以上)→ 画面1枚分に均等配置
+        const spacingMult = poolSize <= 6 ? 1.5 : 1;
+        const verticalSpacing = gameAreaHeight / (this.targetOnScreen * spacingMult);
         this.spawnInterval = Math.round(verticalSpacing / avgSpeed);
         this.spawnTimer = 0; // すぐ最初の1個を出す
     }
@@ -653,7 +659,7 @@ class Game {
             width: textW,
             hp: 2,
             maxHp: 2,
-            speedMult: 0.6 + Math.random() * 0.5,
+            speedMult: Math.random() < 0.5 ? 0.9 : 1.0,
             dying: false,
             dyingTimer: 0,
             flash: 0
@@ -738,7 +744,7 @@ class Game {
             }
         }
 
-        const baseFallSpeed = 0.8 + this.difficulty * 0.1;
+        const baseFallSpeed = 0.9;
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const e = this.enemies[i];
 
