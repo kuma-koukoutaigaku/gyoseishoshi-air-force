@@ -94,10 +94,11 @@ class CustomQuestionLoader {
     }
 
     // タブ名からグループ名を判定
-    // 「オリジナル」を含む → 'オリジナル' グループ、それ以外 → null（トップレベル）
+    // 「問題集」を含む → null（トップレベル、questions.jsと同じ扱い）
+    // それ以外 → 'オリジナル' グループ
     groupFromTabName(name) {
-        if (name.includes('オリジナル')) return 'オリジナル';
-        return null;
+        if (name.includes('問題集')) return null;
+        return 'オリジナル';
     }
 
     async load() {
@@ -280,8 +281,8 @@ class CustomQuestionLoader {
         // グループが違えば同じ分野名でも別カテゴリとして分離する
         for (const catName of categoryOrder) {
             const questions = categories[catName];
-            const keyBase = tabGroup ? tabGroup + '_' + catName : catName;
-            const key = this.toSafeKey(keyBase);
+            // スプレッドシートの問題はcustom_プレフィックスでquestions.jsと分離
+            const key = 'custom_' + this.toSafeKey(catName);
 
             if (QUESTIONS[key]) {
                 // 同じ分野名が既にあれば統合（別タブから同じ分野名の問題が来た場合）
