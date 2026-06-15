@@ -76,22 +76,36 @@ class Game {
         allBtn.textContent = '全分野';
         container.appendChild(allBtn);
 
-        let currentGroup = null;
-        for (const [key, cat] of Object.entries(CATEGORIES)) {
-            if (cat.group && cat.group !== currentGroup) {
-                currentGroup = cat.group;
-                const label = document.createElement('div');
-                label.className = 'category-group-label' + (key.startsWith('custom_') ? ' custom-group' : '');
-                label.textContent = `── ${cat.group} ──`;
-                container.appendChild(label);
-            } else if (!cat.group && currentGroup !== null) {
-                currentGroup = null;
-            }
+        // グループなし(問題集)を先に、グループあり(オリジナル等)を後に並べる
+        const entries = Object.entries(CATEGORIES);
+        const noGroup = entries.filter(([, c]) => !c.group);
+        const grouped = entries.filter(([, c]) => c.group);
+        // グループ名でまとめる
+        const groupNames = [...new Set(grouped.map(([, c]) => c.group))];
+
+        // グループなしのボタン
+        for (const [key, cat] of noGroup) {
             const btn = document.createElement('button');
-            btn.className = 'category-btn' + (key.startsWith('custom_') ? ' custom-category' : '');
+            btn.className = 'category-btn';
             btn.dataset.category = key;
             btn.textContent = cat.label;
             container.appendChild(btn);
+        }
+
+        // グループごとにラベル + ボタン
+        for (const gName of groupNames) {
+            const label = document.createElement('div');
+            label.className = 'category-group-label custom-group';
+            label.textContent = `── ${gName} ──`;
+            container.appendChild(label);
+
+            for (const [key, cat] of grouped.filter(([, c]) => c.group === gName)) {
+                const btn = document.createElement('button');
+                btn.className = 'category-btn custom-category';
+                btn.dataset.category = key;
+                btn.textContent = cat.label;
+                container.appendChild(btn);
+            }
         }
     }
 
@@ -546,12 +560,14 @@ class Game {
             this.wordPool.push({ text: decoy, isCorrect: false, blankIndex: -1 });
         });
 
-        // === 画面上の単語数ルール ===
+        // === 画面上の単語数ルール（詰めすぎない） ===
         const blanksCount = q.blanks.length;
-        if (blanksCount <= 4) {
-            this.targetOnScreen = 8;
+        if (blanksCount <= 2) {
+            this.targetOnScreen = 5;
+        } else if (blanksCount <= 4) {
+            this.targetOnScreen = 6;
         } else {
-            this.targetOnScreen = 12;
+            this.targetOnScreen = 8;
         }
 
         this.wordPool = this.shuffle(this.wordPool);
@@ -559,7 +575,7 @@ class Game {
 
         // === 画面外（上）から時間差で降ってくるように配置 ===
         const target = this.targetOnScreen;
-        const spacing = 60; // 単語間の縦間隔
+        const spacing = 90; // 単語間の縦間隔（ゆったり）
         this.ctx.font = 'bold 15px "Hiragino Kaku Gothic ProN", sans-serif';
 
         for (let i = 0; i < target; i++) {
@@ -613,11 +629,11 @@ class Game {
             if (e.dying) continue;
             if (e.y < 0) waitingYs.push(e.y);
         }
-        // 一番上の待機単語よりさらに上に配置（間隔60px）
+        // 一番上の待機単語よりさらに上に配置（間隔90px）
         if (waitingYs.length > 0) {
-            return Math.min(...waitingYs) - 60;
+            return Math.min(...waitingYs) - 90;
         }
-        return -40 - Math.random() * 40;
+        return -40 - Math.random() * 60;
     }
 
     // 撃破・フレームアウト後の再出現（画面外上部から降ってくる）
