@@ -995,11 +995,11 @@ class Game {
                     let rankHtml = '<h3 class="ranking-title">RANKING</h3>';
                     rankHtml += '<div class="ranking-table">';
                     rankings.forEach((r, i) => {
-                        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
+                        const medal = i === 0 ? '1st' : i === 1 ? '2nd' : i === 2 ? '3rd' : `${i + 1}th`;
                         const rMin = Math.floor(r.time / 60);
                         const rSec = r.time % 60;
                         rankHtml += `<div class="ranking-row${r.score === finalScore && r.date === rankings.find(x => x.score === finalScore)?.date ? ' ranking-current' : ''}">`;
-                        rankHtml += `<span class="ranking-medal">${medal}</span>`;
+                        rankHtml += `<span class="ranking-medal rank-${i + 1}">${medal}</span>`;
                         rankHtml += `<span class="ranking-score">${r.score}pt</span>`;
                         rankHtml += `<span class="ranking-time">${rMin}:${rSec.toString().padStart(2, '0')}</span>`;
                         rankHtml += `<span class="ranking-combo">x${r.combo}</span>`;

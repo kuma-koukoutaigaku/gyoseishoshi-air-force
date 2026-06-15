@@ -479,6 +479,19 @@ body {
 .ranking-medal {
     width: 2rem;
     text-align: center;
+    font-weight: bold;
+}
+
+.ranking-medal.rank-1 {
+    color: #ffd700;
+}
+
+.ranking-medal.rank-2 {
+    color: #c0c0c0;
+}
+
+.ranking-medal.rank-3 {
+    color: #cd7f32;
 }
 
 .ranking-score {
