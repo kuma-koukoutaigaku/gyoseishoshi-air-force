@@ -34,7 +34,7 @@ class Game {
 
         // Lanes for non-overlapping spawn
         this.lanes = [];
-        this.laneCount = 4;
+        this.laneCount = 5;
 
         // Timing
         this.enemySpawnTimer = 0;
@@ -578,9 +578,13 @@ class Game {
         this.wordPool = this.shuffle(this.wordPool);
         this.wordPoolIndex = 0;
 
-        // 最初は空。スポーンタイマーで1個ずつ画面外(上)から出す
-        this.spawnTimer = -90; // 最初1.5秒は何も出さない（マイナス値で遅延）
-        this.spawnInterval = 70; // 約1.2秒ごとに1個ずつ登場（60fps基準）
+        // スポーン間隔を落下速度と画面サイズから計算
+        // 画面を targetOnScreen 等分した間隔で落とせば均等に分布する
+        const avgSpeed = (0.8 + this.difficulty * 0.1) * 0.85; // 平均落下速度
+        const gameAreaHeight = this.canvas.height; // ゲーム描画エリアの高さ
+        const verticalSpacing = gameAreaHeight / this.targetOnScreen;
+        this.spawnInterval = Math.round(verticalSpacing / avgSpeed);
+        this.spawnTimer = 0; // すぐ最初の1個を出す
     }
 
     // プールから次の単語を取得（使い切ったらリシャッフル）
@@ -607,24 +611,24 @@ class Game {
 
     // 既存の単語から最も離れたレーンを選ぶ
     pickBestLane() {
-        // 画面上部30%にいる単語のx座標を集める（新スポーンと近いY位置の単語）
+        // 画面上の全単語のx座標と幅を集める
         const occupied = [];
         for (const e of this.enemies) {
             if (e.dying) continue;
-            if (e.y < this.canvas.height * 0.3) {
-                occupied.push(e.x);
-            }
+            occupied.push({ x: e.x, w: e.width || 100 });
         }
         if (occupied.length === 0) {
             return this.lanes[Math.floor(Math.random() * this.lanes.length)];
         }
-        // 各レーンについて、一番近い単語との距離を計算し、最も遠いレーンを選ぶ
+        // 各レーンについて、既存単語の矩形と重ならない距離を計算
         let bestLane = this.lanes[0];
         let bestDist = 0;
         for (const lx of this.lanes) {
             let minDist = Infinity;
-            for (const ox of occupied) {
-                minDist = Math.min(minDist, Math.abs(lx - ox));
+            for (const o of occupied) {
+                // 単語の幅を考慮した距離（中心同士の距離 - 幅の半分）
+                const dist = Math.abs(lx - o.x) - o.w / 2;
+                minDist = Math.min(minDist, dist);
             }
             if (minDist > bestDist) {
                 bestDist = minDist;
@@ -703,13 +707,8 @@ class Game {
             if (aliveCount < this.targetOnScreen) {
                 this.spawnTimer++;
                 if (this.spawnTimer >= this.spawnInterval) {
-                    // 上部に単語が密集していたらスポーンを遅延
-                    const topArea = this.enemies.filter(e => !e.dying && e.y < this.canvas.height * 0.25);
-                    if (topArea.length < 2) {
-                        this.spawnTimer = 0;
-                        this.spawnNewEnemy();
-                    }
-                    // topArea >= 2 なら spawnTimer はそのまま（次フレームで再チェック）
+                    this.spawnTimer = 0;
+                    this.spawnNewEnemy();
                 }
             }
         }
