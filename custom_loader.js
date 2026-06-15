@@ -288,7 +288,13 @@ class CustomQuestionLoader {
             );
 
             if (existingKey) {
-                QUESTIONS[existingKey] = QUESTIONS[existingKey].concat(questions);
+                // 既存問題集に統合する場合、difficultyを除去して重複フィルタを回避
+                const merged = questions.map(q => {
+                    const copy = { ...q };
+                    delete copy.difficulty;
+                    return copy;
+                });
+                QUESTIONS[existingKey] = QUESTIONS[existingKey].concat(merged);
             } else {
                 const key = 'custom_' + this.toSafeKey(catName);
                 if (QUESTIONS[key]) {
