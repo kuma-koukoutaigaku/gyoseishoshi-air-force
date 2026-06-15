@@ -4,6 +4,7 @@ class Game {
         this.ctx = this.canvas.getContext('2d');
 
         this.selectedCategory = 'all';
+        this.selectedDifficulty = '普通';
         this.playMode = 'sequential';
         this.setStart = 0;
         this.setSize = 10;
@@ -190,7 +191,29 @@ class Game {
         this.setStart = saved < total ? saved : 0;
     }
 
-    getCategoryPool() {
+    // 選択中のカテゴリに難易度付き問題があるか確認し、
+    // あれば難易度セレクタを表示、なければ非表示
+    updateDifficultyButtons() {
+        const pool = this.getRawCategoryPool();
+        const hasDifficulty = pool.some(q => q.difficulty && q.difficulty !== '普通');
+        const diffSelect = document.getElementById('difficulty-select');
+
+        if (hasDifficulty) {
+            diffSelect.classList.remove('hidden');
+            // 各難易度に問題があるかチェックしてdisabled制御
+            ['普通', '難', '激ムズ'].forEach(diff => {
+                const btn = document.querySelector(`.diff-btn[data-diff="${diff}"]`);
+                const count = pool.filter(q => (q.difficulty || '普通') === diff).length;
+                btn.disabled = count === 0;
+            });
+        } else {
+            diffSelect.classList.add('hidden');
+            this.selectedDifficulty = '普通';
+        }
+    }
+
+    // フィルタなしの生プール
+    getRawCategoryPool() {
         let pool = [];
         if (this.selectedCategory === 'all') {
             for (const cat of Object.values(QUESTIONS)) {
@@ -200,6 +223,15 @@ class Game {
             pool = [...(QUESTIONS[this.selectedCategory] || [])];
         }
         return pool;
+    }
+
+    getCategoryPool() {
+        const pool = this.getRawCategoryPool();
+        // 難易度フィルタ: 難易度プロパティがある問題はフィルタ、ない問題は常に含む
+        return pool.filter(q => {
+            if (!q.difficulty) return true; // 既存問題(questions.js)は難易度なし→常に表示
+            return q.difficulty === this.selectedDifficulty;
+        });
     }
 
     initStars() {
@@ -232,6 +264,18 @@ class Game {
             document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
             this.selectedCategory = btn.dataset.category;
+            this.updateDifficultyButtons();
+            if (this.playMode === 'sequential') {
+                this.buildSetButtons();
+            }
+        });
+
+        document.getElementById('difficulty-buttons').addEventListener('click', (e) => {
+            const btn = e.target.closest('.diff-btn');
+            if (!btn || btn.disabled) return;
+            document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            this.selectedDifficulty = btn.dataset.diff;
             if (this.playMode === 'sequential') {
                 this.buildSetButtons();
             }
@@ -368,9 +412,12 @@ class Game {
         if (this.questions.length === 0) return;
 
         // スコア正規化: どんなセットでも満点が約10000点になるように調整
+        // 難易度倍率: 普通=1.0, 難=1.5, 激ムズ=2.0
+        const diffScoreMult = this.selectedDifficulty === '激ムズ' ? 2.0
+                            : this.selectedDifficulty === '難' ? 1.5 : 1.0;
         this.totalBlanks = this.questions.reduce((sum, q) => sum + q.blanks.length, 0);
-        this.basePoints = Math.round(7000 / this.totalBlanks);  // 正解分の配分
-        this.speedBonusPerQ = Math.round(3000 / this.questions.length);  // 速度分の配分
+        this.basePoints = Math.round(7000 * diffScoreMult / this.totalBlanks);
+        this.speedBonusPerQ = Math.round(3000 * diffScoreMult / this.questions.length);
 
         document.getElementById('title-screen').classList.add('hidden');
         document.getElementById('result-screen').classList.add('hidden');

@@ -13,6 +13,7 @@
 //   H列: 解答5       （{4} の正解 ※なければ空欄）
 //   I列: 出典        （例: 第5条, 最判平1.11.24）
 //   J列: デコイ      （任意。パイプ区切り 例: 間違い1|間違い2|間違い3）
+//   K列: 難易度      （任意。「普通」「難」「激ムズ」。空欄は「普通」扱い）
 //
 // 【タブ対応】
 //   スプレッドシート内の全タブを自動的に読み込む。
@@ -232,11 +233,16 @@ class CustomQuestionLoader {
                 categoryOrder.push(category);
             }
 
+            // K列: 難易度（空欄は「普通」）
+            const rawDiff = (row[10] || '').trim();
+            const difficulty = (rawDiff === '難' || rawDiff === '激ムズ') ? rawDiff : '普通';
+
             const q = {
                 text: text,
                 blanks: answers,
                 decoys: allDecoys,
-                source: source
+                source: source,
+                difficulty: difficulty
             };
             if (section) q.section = section;
 

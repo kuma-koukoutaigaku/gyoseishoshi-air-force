@@ -81,6 +81,68 @@ body {
     font-weight: bold;
 }
 
+/* Difficulty Select */
+#difficulty-select {
+    margin-bottom: 1.2rem;
+    text-align: center;
+}
+
+#difficulty-select h3 {
+    margin-bottom: 0.8rem;
+    color: #aaa;
+    font-size: 0.9rem;
+}
+
+#difficulty-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 0.4rem;
+}
+
+.diff-btn {
+    background: transparent;
+    border: 2px solid #4a4a8a;
+    color: #8ab4f8;
+    padding: 0.5rem 1.2rem;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.diff-btn:hover {
+    border-color: #8ab4f8;
+    background: rgba(138, 180, 248, 0.1);
+}
+
+.diff-btn.selected {
+    font-weight: bold;
+}
+
+.diff-btn[data-diff="普通"].selected {
+    background: #8ab4f8;
+    color: #0a0a2e;
+    border-color: #8ab4f8;
+}
+
+.diff-btn[data-diff="難"].selected {
+    background: #ffa500;
+    color: #0a0a2e;
+    border-color: #ffa500;
+}
+
+.diff-btn[data-diff="激ムズ"].selected {
+    background: #ff4444;
+    color: #fff;
+    border-color: #ff4444;
+}
+
+.diff-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
 /* Category Select */
 #category-select {
     margin-bottom: 1.2rem;
