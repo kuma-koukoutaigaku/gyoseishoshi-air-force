@@ -479,9 +479,23 @@ class Game {
         }
 
         // プールを使い切ったら即リセット
+        // 正解が後ろに偏らないよう、次に必要な正解を前半に配置
         if (this.wordPoolIndex >= this.wordPool.length) {
             this.wordPool = this.shuffle(this.wordPool);
             this.wordPoolIndex = 0;
+
+            // 現在の正解が前半にあるか確認、なければ入れ替え
+            const q = this.questions[this.currentQuestionIndex];
+            const needed = q.blanks[this.currentBlankIndex];
+            if (needed) {
+                const half = Math.floor(this.wordPool.length / 2);
+                const correctIdx = this.wordPool.findIndex(w => w.isCorrect && w.text === needed);
+                if (correctIdx >= half) {
+                    const swapIdx = Math.floor(Math.random() * half);
+                    [this.wordPool[swapIdx], this.wordPool[correctIdx]] =
+                        [this.wordPool[correctIdx], this.wordPool[swapIdx]];
+                }
+            }
         }
 
         const wordData = this.wordPool[this.wordPoolIndex];
@@ -624,18 +638,9 @@ class Game {
             e.y += baseFallSpeed * e.speedMult;
 
             if (e.y > this.canvas.height + 30) {
-                // 正解の単語で、まだその穴が埋まっていないならループ（上に戻す）
-                if (e.isCorrect && e.blankIndex >= this.currentBlankIndex) {
-                    e.y = -30;
-                    e.hp = e.maxHp;
-                    // レーンと速度を再割り当て
-                    const laneIdx = Math.floor(Math.random() * this.lanes.length);
-                    e.x = this.lanes[laneIdx];
-                    e.speedMult = 0.6 + Math.random() * 1.0;
-                } else {
-                    // デコイや既に埋まった正解は削除
-                    this.enemies.splice(i, 1);
-                }
+                // 画面外に出たら削除（正解もデコイも同じ扱い）
+                // プールが循環するので正解は自然にまた出てくる
+                this.enemies.splice(i, 1);
             }
         }
 
