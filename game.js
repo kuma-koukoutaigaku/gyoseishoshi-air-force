@@ -560,7 +560,7 @@ class Game {
             this.wordPool.push({ text: decoy, isCorrect: false, blankIndex: -1 });
         });
 
-        // === 画面上の単語数ルール（詰めすぎない） ===
+        // === 画面上の単語数（同時に画面にいる最大数） ===
         const blanksCount = q.blanks.length;
         if (blanksCount <= 2) {
             this.targetOnScreen = 5;
@@ -573,29 +573,9 @@ class Game {
         this.wordPool = this.shuffle(this.wordPool);
         this.wordPoolIndex = 0;
 
-        // === 画面外（上）から時間差で降ってくるように配置 ===
-        const target = this.targetOnScreen;
-        const spacing = 90; // 単語間の縦間隔（ゆったり）
-        this.ctx.font = 'bold 15px "Hiragino Kaku Gothic ProN", sans-serif';
-
-        for (let i = 0; i < target; i++) {
-            const wordData = this.getNextPoolWord();
-            const textW = this.ctx.measureText(wordData.text).width + 40;
-            const laneIdx = Math.floor(Math.random() * this.lanes.length);
-
-            this.enemies.push({
-                ...wordData,
-                x: this.lanes[laneIdx],
-                y: -(spacing * i) - 40, // 画面外から時間差で降ってくる
-                width: textW,
-                hp: 2,
-                maxHp: 2,
-                speedMult: 0.7 + Math.random() * 0.3,
-                dying: false,
-                dyingTimer: 0,
-                flash: 0
-            });
-        }
+        // 最初は空。スポーンタイマーで1個ずつ画面外(上)から出す
+        this.spawnTimer = 0;
+        this.spawnInterval = 30; // 0.5秒ごとに1個ずつ登場（60fps基準）
     }
 
     // プールから次の単語を取得（使い切ったらリシャッフル）
@@ -620,39 +600,24 @@ class Game {
         return this.wordPool[this.wordPoolIndex++];
     }
 
-    // 画面外（上）で他の待機中の単語と被らないY座標を返す
-    findSpawnY(excludeEnemy) {
-        // 画面外で待機中の単語のY座標を収集
-        const waitingYs = [];
-        for (const e of this.enemies) {
-            if (e === excludeEnemy) continue;
-            if (e.dying) continue;
-            if (e.y < 0) waitingYs.push(e.y);
-        }
-        // 一番上の待機単語よりさらに上に配置（間隔90px）
-        if (waitingYs.length > 0) {
-            return Math.min(...waitingYs) - 90;
-        }
-        return -40 - Math.random() * 60;
-    }
-
-    // 撃破・フレームアウト後の再出現（画面外上部から降ってくる）
-    respawnEnemy(e) {
+    // 新しい単語を1個、画面外(上)に生成
+    spawnNewEnemy() {
         const wordData = this.getNextPoolWord();
-        e.text = wordData.text;
-        e.isCorrect = wordData.isCorrect;
-        e.blankIndex = wordData.blankIndex;
-        e.y = this.findSpawnY(e);
-        e.hp = 2;
-        e.maxHp = 2;
-        e.speedMult = 0.7 + Math.random() * 0.3;
-        e.dying = false;
-        e.dyingTimer = 0;
-        e.flash = 0;
-        const laneIdx = Math.floor(Math.random() * this.lanes.length);
-        e.x = this.lanes[laneIdx];
         this.ctx.font = 'bold 15px "Hiragino Kaku Gothic ProN", sans-serif';
-        e.width = this.ctx.measureText(e.text).width + 40;
+        const textW = this.ctx.measureText(wordData.text).width + 40;
+        const laneIdx = Math.floor(Math.random() * this.lanes.length);
+        this.enemies.push({
+            ...wordData,
+            x: this.lanes[laneIdx],
+            y: -40,
+            width: textW,
+            hp: 2,
+            maxHp: 2,
+            speedMult: 0.7 + Math.random() * 0.3,
+            dying: false,
+            dyingTimer: 0,
+            flash: 0
+        });
     }
 
     updateHUD() {
@@ -696,8 +661,17 @@ class Game {
             }
         }
 
-        // prepareWords() で初期配置済み、フレームアウト時に in-place 置換するため
-        // スポーンタイマーは不要
+        // スポーンタイマー: targetOnScreenに達するまで1個ずつ出す
+        if (!this.questionTransition) {
+            const aliveCount = this.enemies.filter(e => !e.dying).length;
+            if (aliveCount < this.targetOnScreen) {
+                this.spawnTimer++;
+                if (this.spawnTimer >= this.spawnInterval) {
+                    this.spawnTimer = 0;
+                    this.spawnNewEnemy();
+                }
+            }
+        }
 
         for (let i = this.bullets.length - 1; i >= 0; i--) {
             const b = this.bullets[i];
@@ -734,8 +708,8 @@ class Game {
             if (e.dying) {
                 e.dyingTimer++;
                 if (e.dyingTimer > 20) {
-                    // 撃破後 → 画面外（上）から再登場
-                    this.respawnEnemy(e);
+                    // 撃破アニメ完了 → 削除（スポーンタイマーが補充する）
+                    this.enemies.splice(i, 1);
                 }
                 continue;
             }
@@ -743,8 +717,8 @@ class Game {
             e.y += baseFallSpeed * e.speedMult;
 
             if (e.y > this.canvas.height + 30) {
-                // フレームアウト → 画面外（上）から再登場
-                this.respawnEnemy(e);
+                // フレームアウト → 削除（スポーンタイマーが補充する）
+                this.enemies.splice(i, 1);
             }
         }
 
