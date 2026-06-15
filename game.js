@@ -746,12 +746,15 @@ class Game {
             const points = Math.floor(basePoints * comboMult * diffMult);
             this.score += points;
 
-            // スピードボーナス（この問題を10秒以内に回答）
-            const qElapsed = (Date.now() - this.questionStartTime) / 1000;
+            // スピードボーナス（早く解くほど高得点、1秒ごとに差がつく）
             if (this.currentBlankIndex === q.blanks.length - 1) {
-                // 最後の穴を埋めた = 問題完了
-                if (qElapsed <= 10) {
-                    const speedBonus = Math.floor(500 * diffMult);
+                const qElapsed = (Date.now() - this.questionStartTime) / 1000;
+                // 制限時間: 穴の数に応じて設定（穴1=8秒, 穴2=11秒, ... 穴5=20秒）
+                const timeLimit = 5 + q.blanks.length * 3;
+                const remaining = timeLimit - qElapsed;
+                if (remaining > 0) {
+                    // 残り秒数 x 100 x 難易度倍率（1秒早いだけで100点以上の差）
+                    const speedBonus = Math.floor(remaining * 100 * diffMult);
                     this.score += speedBonus;
                     this.comboDisplay.text = `SPEED! +${speedBonus}`;
                     this.comboDisplay.alpha = 1;
