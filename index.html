@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=27">
+    <link rel="stylesheet" href="style.css?v=28">
 </head>
 <body>
     <div id="game-container">
@@ -61,12 +61,20 @@
         </div>
 
         <div id="result-screen" class="hidden">
-            <h2 id="result-title"></h2>
-            <div id="result-score"></div>
-            <div id="result-ranking" class="hidden"></div>
-            <div id="result-detail"></div>
-            <button id="retry-btn">もう一度プレイ</button>
-            <button id="back-btn">タイトルに戻る</button>
+            <div id="result-top">
+                <h2 id="result-title"></h2>
+                <div id="result-top-content">
+                    <div id="result-score"></div>
+                    <div id="result-ranking" class="hidden"></div>
+                </div>
+                <div id="result-buttons">
+                    <button id="retry-btn">もう一度プレイ</button>
+                    <button id="back-btn">タイトルに戻る</button>
+                </div>
+            </div>
+            <div id="result-bottom">
+                <div id="result-detail"></div>
+            </div>
         </div>
     </div>
 
@@ -81,8 +89,8 @@
         }
     }
     </script>
-    <script src="questions.js?v=27"></script>
-    <script src="custom_loader.js?v=27"></script>
-    <script src="game.js?v=27"></script>
+    <script src="questions.js?v=28"></script>
+    <script src="custom_loader.js?v=28"></script>
+    <script src="game.js?v=28"></script>
 </body>
 </html>

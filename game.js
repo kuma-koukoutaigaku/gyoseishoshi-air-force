@@ -1113,10 +1113,9 @@ class Game {
         // スコア詳細
         const min = Math.floor(totalTimeSec / 60);
         const sec = totalTimeSec % 60;
-        let scoreHtml = `SCORE: ${finalScore}<br>`;
-        scoreHtml += `TIME: ${min}:${sec.toString().padStart(2, '0')}<br>`;
-        scoreHtml += `MAX COMBO: ${this.maxCombo}<br>`;
-        scoreHtml += `正解: ${correctCount} / ${totalAsked}`;
+        let scoreHtml = `<div>SCORE: ${finalScore}</div>`;
+        scoreHtml += `<div>TIME: ${min}:${sec.toString().padStart(2, '0')} / COMBO: ${this.maxCombo}</div>`;
+        scoreHtml += `<div>正解: ${correctCount} / ${totalAsked}</div>`;
 
         if (bonusDetails.length > 0) {
             scoreHtml += '<div class="bonus-list">';
@@ -1144,7 +1143,6 @@ class Game {
                         rankHtml += `<span class="ranking-medal rank-${i + 1}">${medal}</span>`;
                         rankHtml += `<span class="ranking-score">${r.score}pt</span>`;
                         rankHtml += `<span class="ranking-time">${rMin}:${rSec.toString().padStart(2, '0')}</span>`;
-                        rankHtml += `<span class="ranking-combo">x${r.combo}</span>`;
                         rankHtml += `<span class="ranking-date">${r.date}</span>`;
                         rankHtml += '</div>';
                     });
@@ -1180,8 +1178,6 @@ class Game {
             }
 
             const mark = wasAnswered ? (correct ? '○' : '×') : '−';
-            const diffLabel = this.getDifficultyLabel(q);
-            const diffClass = diffLabel === '激ムズ' ? 'diff-extreme' : diffLabel === '難' ? 'diff-hard' : 'diff-normal';
 
             let timeStr = '';
             if (result && result.time) {
@@ -1189,7 +1185,7 @@ class Game {
                 timeStr = `<span class="result-time">${t}秒</span>`;
             }
 
-            div.innerHTML = `<div class="result-source">${q.source} <span class="result-diff ${diffClass}">${diffLabel}</span>${timeStr}</div><span class="result-mark">${mark}</span>${this.buildFilledText(q)}`;
+            div.innerHTML = `<div class="result-source">${q.source}${timeStr}</div><span class="result-mark">${mark}</span>${this.buildFilledText(q)}`;
             detailEl.appendChild(div);
         });
     }
