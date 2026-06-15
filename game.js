@@ -557,9 +557,9 @@ class Game {
         this.wordPool = this.shuffle(this.wordPool);
         this.wordPoolIndex = 0;
 
-        // === 最初から画面全体にtarget数の単語を均等配置 ===
+        // === 画面外（上）から時間差で降ってくるように配置 ===
         const target = this.targetOnScreen;
-        const gap = this.canvas.height / target;
+        const spacing = 60; // 単語間の縦間隔
         this.ctx.font = 'bold 15px "Hiragino Kaku Gothic ProN", sans-serif';
 
         for (let i = 0; i < target; i++) {
@@ -570,7 +570,7 @@ class Game {
             this.enemies.push({
                 ...wordData,
                 x: this.lanes[laneIdx],
-                y: gap * i,
+                y: -(spacing * i) - 40, // 画面外から時間差で降ってくる
                 width: textW,
                 hp: 2,
                 maxHp: 2,
@@ -604,29 +604,39 @@ class Game {
         return this.wordPool[this.wordPoolIndex++];
     }
 
-    // 画面上半分で一番隙間が広い場所のY座標を返す
-    // → 全部y=0に出すと「ここから2巡目」感が出るので、隙間を埋める
-    findLargestGapY(excludeEnemy) {
-        const halfH = this.canvas.height * 0.5;
-        const ys = [0]; // 上端を境界に
+    // 画面外（上）で他の待機中の単語と被らないY座標を返す
+    findSpawnY(excludeEnemy) {
+        // 画面外で待機中の単語のY座標を収集
+        const waitingYs = [];
         for (const e of this.enemies) {
             if (e === excludeEnemy) continue;
             if (e.dying) continue;
-            if (e.y >= 0 && e.y <= halfH) ys.push(e.y);
+            if (e.y < 0) waitingYs.push(e.y);
         }
-        ys.push(halfH); // 下限を境界に
-        ys.sort((a, b) => a - b);
+        // 一番上の待機単語よりさらに上に配置（間隔60px）
+        if (waitingYs.length > 0) {
+            return Math.min(...waitingYs) - 60;
+        }
+        return -40 - Math.random() * 40;
+    }
 
-        let bestMid = 0;
-        let bestGap = 0;
-        for (let i = 0; i < ys.length - 1; i++) {
-            const gap = ys[i + 1] - ys[i];
-            if (gap > bestGap) {
-                bestGap = gap;
-                bestMid = ys[i] + gap / 2;
-            }
-        }
-        return Math.max(0, bestMid);
+    // 撃破・フレームアウト後の再出現（画面外上部から降ってくる）
+    respawnEnemy(e) {
+        const wordData = this.getNextPoolWord();
+        e.text = wordData.text;
+        e.isCorrect = wordData.isCorrect;
+        e.blankIndex = wordData.blankIndex;
+        e.y = this.findSpawnY(e);
+        e.hp = 2;
+        e.maxHp = 2;
+        e.speedMult = 0.7 + Math.random() * 0.3;
+        e.dying = false;
+        e.dyingTimer = 0;
+        e.flash = 0;
+        const laneIdx = Math.floor(Math.random() * this.lanes.length);
+        e.x = this.lanes[laneIdx];
+        this.ctx.font = 'bold 15px "Hiragino Kaku Gothic ProN", sans-serif';
+        e.width = this.ctx.measureText(e.text).width + 40;
     }
 
     updateHUD() {
@@ -708,22 +718,8 @@ class Game {
             if (e.dying) {
                 e.dyingTimer++;
                 if (e.dyingTimer > 20) {
-                    // 撃破後も画面上の単語数を維持 → 隙間が最大の場所に出現
-                    const wordData = this.getNextPoolWord();
-                    e.text = wordData.text;
-                    e.isCorrect = wordData.isCorrect;
-                    e.blankIndex = wordData.blankIndex;
-                    e.y = this.findLargestGapY(e);
-                    e.hp = 2;
-                    e.maxHp = 2;
-                    e.speedMult = 0.7 + Math.random() * 0.3;
-                    e.dying = false;
-                    e.dyingTimer = 0;
-                    e.flash = 0;
-                    const laneIdx = Math.floor(Math.random() * this.lanes.length);
-                    e.x = this.lanes[laneIdx];
-                    this.ctx.font = 'bold 15px "Hiragino Kaku Gothic ProN", sans-serif';
-                    e.width = this.ctx.measureText(e.text).width + 40;
+                    // 撃破後 → 画面外（上）から再登場
+                    this.respawnEnemy(e);
                 }
                 continue;
             }
@@ -731,22 +727,8 @@ class Game {
             e.y += baseFallSpeed * e.speedMult;
 
             if (e.y > this.canvas.height + 30) {
-                // フレームアウト → 隙間が最大の場所に即出現（巡目の境界が見えない）
-                const wordData = this.getNextPoolWord();
-                e.text = wordData.text;
-                e.isCorrect = wordData.isCorrect;
-                e.blankIndex = wordData.blankIndex;
-                e.y = this.findLargestGapY(e);
-                e.hp = 2;
-                e.maxHp = 2;
-                e.speedMult = 0.7 + Math.random() * 0.3;
-                e.dying = false;
-                e.dyingTimer = 0;
-                e.flash = 0;
-                const laneIdx = Math.floor(Math.random() * this.lanes.length);
-                e.x = this.lanes[laneIdx];
-                this.ctx.font = 'bold 15px "Hiragino Kaku Gothic ProN", sans-serif';
-                e.width = this.ctx.measureText(e.text).width + 40;
+                // フレームアウト → 画面外（上）から再登場
+                this.respawnEnemy(e);
             }
         }
 
