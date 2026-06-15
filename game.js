@@ -583,12 +583,12 @@ class Game {
             if (e.dying) {
                 e.dyingTimer++;
                 if (e.dyingTimer > 20) {
-                    // 撃破後も画面上の単語数を維持 → 新しい単語で上書き
+                    // 撃破後も画面上の単語数を維持 → 画面最上部に即出現
                     const wordData = this.getNextPoolWord();
                     e.text = wordData.text;
                     e.isCorrect = wordData.isCorrect;
                     e.blankIndex = wordData.blankIndex;
-                    e.y = -30;
+                    e.y = 0;
                     e.hp = 2;
                     e.maxHp = 2;
                     e.speedMult = 0.7 + Math.random() * 0.3;
@@ -606,12 +606,12 @@ class Game {
             e.y += baseFallSpeed * e.speedMult;
 
             if (e.y > this.canvas.height + 30) {
-                // フレームアウト → 即座にプールの次の単語で上書き（隙間なし）
+                // フレームアウト → 画面最上部に即出現（待ち時間ゼロ）
                 const wordData = this.getNextPoolWord();
                 e.text = wordData.text;
                 e.isCorrect = wordData.isCorrect;
                 e.blankIndex = wordData.blankIndex;
-                e.y = -30;
+                e.y = 0;
                 e.hp = 2;
                 e.maxHp = 2;
                 e.speedMult = 0.7 + Math.random() * 0.3;
