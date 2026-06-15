@@ -5,13 +5,19 @@
 // 【スプレッドシートのフォーマット】
 //   A列: 分野       （例: 民法, 行政法, 憲法）
 //   B列: セクション  （例: 総則, 物権 ※任意）
-//   C列: 問題文      （穴は {0} {1} {2} {3} で指定）
-//   D列: 解答1       （{0} の正解）
+//   C列: 問題文      （穴は {0} {1} {2} {3} で指定、または ①②③④⑤）
+//   D列: 解答1       （{0} の正解。/区切りでデコイも指定可: 正解/デコイ1/デコイ2）
 //   E列: 解答2       （{1} の正解 ※なければ空欄）
 //   F列: 解答3       （{2} の正解 ※なければ空欄）
 //   G列: 解答4       （{3} の正解 ※なければ空欄）
-//   H列: 出典        （例: 第5条, 最判平1.11.24）
-//   I列: デコイ      （任意。パイプ区切り 例: 間違い1|間違い2|間違い3）
+//   H列: 解答5       （{4} の正解 ※なければ空欄）
+//   I列: 出典        （例: 第5条, 最判平1.11.24）
+//   J列: デコイ      （任意。パイプ区切り 例: 間違い1|間違い2|間違い3）
+//
+// 【タブ対応】
+//   スプレッドシート内の全タブを自動的に読み込む。
+//   タブを分けても A列(分野) の値でボタンが作られる。
+//   同じ分野名なら統合、違う名前なら別ボタンになる。
 //
 // 【設定方法】
 //   下の CUSTOM_CONFIG.sheetId にスプレッドシートIDを入れる
@@ -20,11 +26,7 @@
 
 const CUSTOM_CONFIG = {
     // Google スプレッドシートの ID（URLの /d/ と /edit の間の部分）
-    // 例: '1AbCdEfGhIjKlMnOpQrStUvWxYz'
     sheetId: '1_YYh_4xhFGijlO3RfvyRUwrW2NLfVgySMeyHJF51rCM',
-
-    // シート名（空欄なら最初のシートを使用）
-    sheetName: '',
 
     // タイトル画面に表示するグループ名
     groupName: 'オリジナル'
@@ -35,29 +37,76 @@ class CustomQuestionLoader {
         this.loaded = false;
     }
 
-    getSheetUrl() {
-        if (!CUSTOM_CONFIG.sheetId) return null;
-        if (CUSTOM_CONFIG.sheetName) {
-            return `https://docs.google.com/spreadsheets/d/${CUSTOM_CONFIG.sheetId}/export?format=csv&sheet=${encodeURIComponent(CUSTOM_CONFIG.sheetName)}`;
+    // 全タブの gid 一覧を取得
+    async getSheetGids() {
+        const url = `https://docs.google.com/spreadsheets/d/${CUSTOM_CONFIG.sheetId}/edit`;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) return [0]; // フォールバック: 最初のタブだけ
+            const html = await response.text();
+            // HTML内の gid パラメータを抽出
+            const gids = [];
+            const regex = /"gid":"(\d+)"/g;
+            let match;
+            while ((match = regex.exec(html)) !== null) {
+                const gid = parseInt(match[1]);
+                if (!gids.includes(gid)) gids.push(gid);
+            }
+            // 見つからない場合のフォールバック（別のパターン）
+            if (gids.length === 0) {
+                const regex2 = /gid=(\d+)/g;
+                while ((match = regex2.exec(html)) !== null) {
+                    const gid = parseInt(match[1]);
+                    if (!gids.includes(gid)) gids.push(gid);
+                }
+            }
+            return gids.length > 0 ? gids : [0];
+        } catch {
+            return [0];
         }
-        return `https://docs.google.com/spreadsheets/d/${CUSTOM_CONFIG.sheetId}/export?format=csv&gid=0`;
+    }
+
+    getSheetUrlByGid(gid) {
+        return `https://docs.google.com/spreadsheets/d/${CUSTOM_CONFIG.sheetId}/export?format=csv&gid=${gid}`;
     }
 
     async load() {
-        const url = this.getSheetUrl();
-        if (!url) return;
+        if (!CUSTOM_CONFIG.sheetId) return;
 
         try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const csv = await response.text();
-            this.parseAndRegister(csv);
-            // オフライン用にキャッシュ
-            try {
-                localStorage.setItem('af_custom_csv', csv);
-                localStorage.setItem('af_custom_csv_time', Date.now().toString());
-            } catch {}
-            console.log('カスタム問題を読み込みました');
+            // 全タブの gid を取得
+            const gids = await this.getSheetGids();
+            console.log(`スプレッドシート: ${gids.length}タブ検出`);
+
+            // 全タブのCSVを結合（ヘッダー行は最初のタブのみ残す）
+            let allCsv = '';
+            for (let i = 0; i < gids.length; i++) {
+                const url = this.getSheetUrlByGid(gids[i]);
+                const response = await fetch(url);
+                if (!response.ok) continue;
+                let csv = await response.text();
+
+                if (i === 0) {
+                    // 最初のタブはそのまま（ヘッダー込み）
+                    allCsv = csv;
+                } else {
+                    // 2タブ目以降はヘッダー行をスキップ
+                    const firstNewline = csv.indexOf('\n');
+                    if (firstNewline >= 0) {
+                        allCsv += '\n' + csv.substring(firstNewline + 1);
+                    }
+                }
+            }
+
+            if (allCsv) {
+                this.parseAndRegister(allCsv);
+                // オフライン用にキャッシュ
+                try {
+                    localStorage.setItem('af_custom_csv', allCsv);
+                    localStorage.setItem('af_custom_csv_time', Date.now().toString());
+                } catch {}
+                console.log('カスタム問題を読み込みました');
+            }
         } catch (e) {
             console.warn('カスタム問題の読み込みに失敗:', e.message);
             // キャッシュがあればそちらを使う
@@ -200,14 +249,18 @@ class CustomQuestionLoader {
         // CATEGORIES と QUESTIONS に登録
         for (const catName of categoryOrder) {
             const questions = categories[catName];
-            // キー名を生成（英数字+日本語で安全なキー）
             const key = 'custom_' + this.toSafeKey(catName);
 
-            CATEGORIES[key] = {
-                label: catName,
-                group: CUSTOM_CONFIG.groupName
-            };
-            QUESTIONS[key] = questions;
+            if (QUESTIONS[key]) {
+                // 同じ分野名が既にあれば統合（別タブから同じ分野名の問題が来た場合）
+                QUESTIONS[key] = QUESTIONS[key].concat(questions);
+            } else {
+                CATEGORIES[key] = {
+                    label: catName,
+                    group: CUSTOM_CONFIG.groupName
+                };
+                QUESTIONS[key] = questions;
+            }
         }
 
         this.loaded = true;
