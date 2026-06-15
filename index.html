@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=26">
+    <link rel="stylesheet" href="style.css?v=27">
 </head>
 <body>
     <div id="game-container">
@@ -71,14 +71,18 @@
     </div>
 
     <script>
+    // SW完全削除: 登録済みのSWを解除してキャッシュも全削除
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').then(reg => {
-            reg.update();
+        navigator.serviceWorker.getRegistrations().then(regs => {
+            regs.forEach(r => r.unregister());
         });
+        if ('caches' in window) {
+            caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+        }
     }
     </script>
-    <script src="questions.js?v=26"></script>
-    <script src="custom_loader.js?v=26"></script>
-    <script src="game.js?v=26"></script>
+    <script src="questions.js?v=27"></script>
+    <script src="custom_loader.js?v=27"></script>
+    <script src="game.js?v=27"></script>
 </body>
 </html>
