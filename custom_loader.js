@@ -112,37 +112,24 @@ class CustomQuestionLoader {
         } catch {}
 
         try {
-            // 全タブの gid・名前 を取得
-            const tabs = await this.getSheetTabs();
-            console.log(`スプレッドシート: ${tabs.length}タブ検出`);
+            // gid=0のCSVを直接取得（タブ自動検出を廃止、iPhone互換性のため）
+            const url = this.getSheetUrlByGid(0);
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const csv = await response.text();
+            if (!csv.trim()) throw new Error('Empty CSV');
 
-            // タブごとにCSVを取得し、タブ名から難易度を決定して登録
-            const cacheChunks = [];
-            for (const tab of tabs) {
-                const url = this.getSheetUrlByGid(tab.gid);
-                const response = await fetch(url);
-                if (!response.ok) continue;
-                const csv = await response.text();
-                if (!csv.trim()) continue;
-
-                const difficulty = this.difficultyFromTabName(tab.name);
-                const group = this.groupFromTabName(tab.name);
-                // CSVの分野(A列)を抽出してログ
-                const lines = csv.split('\n').slice(1).filter(l => l.trim());
-                const cats = [...new Set(lines.map(l => l.split(',')[0].replace(/"/g,'').trim()).filter(Boolean))];
-                console.log(`タブ「${tab.name}」gid=${tab.gid} → 分野: ${cats.join(', ')} (${lines.length}行)`);
-                this.parseAndRegister(csv, difficulty, group);
-                cacheChunks.push({csv, difficulty, group});
+            // CSVがHTMLでないか確認（リダイレクト対策）
+            if (csv.trim().startsWith('<!') || csv.trim().startsWith('<html')) {
+                throw new Error('Got HTML instead of CSV');
             }
 
-            // オフライン用にキャッシュ
-            if (cacheChunks.length > 0) {
-                try {
-                    localStorage.setItem('af_custom_cache', JSON.stringify(cacheChunks));
-                    localStorage.setItem('af_custom_cache_time', Date.now().toString());
-                } catch {}
-                console.log('カスタム問題を読み込みました');
-            }
+            const lines = csv.split('\n').slice(1).filter(l => l.trim());
+            const cats = [...new Set(lines.map(l => l.split(',')[0].replace(/"/g,'').trim()).filter(Boolean))];
+            console.log(`スプレッドシート読み込み: 分野=${cats.join(', ')} (${lines.length}行)`);
+
+            this.parseAndRegister(csv, '普通', 'オリジナル');
+            console.log('カスタム問題を読み込みました');
         } catch (e) {
             console.warn('カスタム問題の読み込みに失敗:', e.message);
             // ネットワーク失敗時はカスタム問題なしで動作（不正キャッシュ防止）
