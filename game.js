@@ -449,15 +449,8 @@ class Game {
         const poolSize = this.wordPool.length;
 
         // 画面上に同時に表示する単語数の目標
-        // 少ない(6個以下): 最大2個 → 落ち着いて選べる
-        // 多い(7個以上):   常に最低1個は見える＋適度な密度
-        if (poolSize <= 6) {
-            this.targetOnScreen = 2;
-        } else if (poolSize <= 10) {
-            this.targetOnScreen = 3;
-        } else {
-            this.targetOnScreen = 4;
-        }
+        // プールサイズに比例させつつ、最低5個は画面にいるようにする
+        this.targetOnScreen = Math.max(5, Math.min(poolSize, 8));
 
         this.wordPool = this.shuffle(this.wordPool);
         this.wordPoolIndex = 0;
@@ -472,9 +465,10 @@ class Game {
         if (activeCount >= target) return;
 
         // 画面上部(y < 80)に単語がいたら重なり防止で待つ
+        // 直前にスポーンした単語と重ならないよう最低限の間隔
         // ただし画面に0個なら即スポーン（途切れ防止）
         if (activeCount > 0) {
-            const nearTop = this.enemies.some(e => !e.dying && e.y < 80);
+            const nearTop = this.enemies.some(e => !e.dying && e.y < 50);
             if (nearTop) return;
         }
 
@@ -587,9 +581,8 @@ class Game {
 
         if (!this.questionTransition) {
             this.enemySpawnTimer++;
-            // 最低20フレーム間隔で連続スポーンを試みる
-            // 実際にスポーンするかはspawnEnemy内のtargetOnScreenで制御
-            if (this.enemySpawnTimer >= 20) {
+            // 毎10フレームでスポーン試行（実際の制御はspawnEnemy内のtargetで判定）
+            if (this.enemySpawnTimer >= 10) {
                 this.spawnEnemy();
                 this.enemySpawnTimer = 0;
             }
