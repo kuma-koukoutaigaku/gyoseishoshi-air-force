@@ -608,20 +608,24 @@ class Game {
             }
         }
 
-        // プール内の単語を全部出し切ったら再シャッフル
+        // プール内の単語を全部出し切ったらデコイを再補充
         if (this.wordPoolIndex >= this.wordPool.length && !this.questionTransition) {
-            // 正解がまだ画面上にあるか確認
             const q = this.questions[this.currentQuestionIndex];
             const neededBlanks = q.blanks.slice(this.currentBlankIndex);
+
+            // デコイだけのプールを作り直す（正解はループで画面に残るので不要）
+            const decoyPool = this.wordPool.filter(w => !w.isCorrect);
+            // 正解がまだ画面上にいなければ正解も追加
             const correctOnScreen = this.enemies.some(e =>
                 e.isCorrect && !e.dying && neededBlanks.includes(e.text)
             );
-
-            // 正解が画面にいなければデコイを補充
             if (!correctOnScreen) {
-                this.wordPool = this.shuffle(this.wordPool);
-                this.wordPoolIndex = 0;
+                const correctPool = this.wordPool.filter(w => w.isCorrect && neededBlanks.includes(w.text));
+                this.wordPool = this.shuffle([...decoyPool, ...correctPool]);
+            } else {
+                this.wordPool = this.shuffle(decoyPool);
             }
+            this.wordPoolIndex = 0;
         }
 
         for (let i = this.particles.length - 1; i >= 0; i--) {
