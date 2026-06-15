@@ -448,16 +448,15 @@ class Game {
 
         const poolSize = this.wordPool.length;
 
-        // 単語数に応じてスポーン間隔を動的に設定
-        // 少ない(2-4): 間隔短め→画面に同じ単語が複数出る
-        // 中程度(5-8): バランス型
-        // 多い(9+):    間隔やや広め→途切れなく次々流れる
-        if (poolSize <= 4) {
-            this.dynamicSpawnInterval = 35;
-        } else if (poolSize <= 8) {
-            this.dynamicSpawnInterval = 50;
+        // 画面上に同時に表示する単語数の目標
+        // 少ない(6個以下): 最大2個 → 落ち着いて選べる
+        // 多い(7個以上):   常に最低1個は見える＋適度な密度
+        if (poolSize <= 6) {
+            this.targetOnScreen = 2;
+        } else if (poolSize <= 10) {
+            this.targetOnScreen = 3;
         } else {
-            this.dynamicSpawnInterval = 60;
+            this.targetOnScreen = 4;
         }
 
         this.wordPool = this.shuffle(this.wordPool);
@@ -466,11 +465,20 @@ class Game {
     }
 
     spawnEnemy() {
-        // 画面上部(y < 60)に単語がいたらスポーンしない（重なり防止）
-        const nearTop = this.enemies.some(e => !e.dying && e.y < 60);
-        if (nearTop) return;
+        const activeCount = this.enemies.filter(e => !e.dying).length;
+        const target = this.targetOnScreen || 2;
 
-        // プールを使い切ったら即リセット（同じ単語が複数出る）
+        // 目標数に達していたらスポーンしない
+        if (activeCount >= target) return;
+
+        // 画面上部(y < 80)に単語がいたら重なり防止で待つ
+        // ただし画面に0個なら即スポーン（途切れ防止）
+        if (activeCount > 0) {
+            const nearTop = this.enemies.some(e => !e.dying && e.y < 80);
+            if (nearTop) return;
+        }
+
+        // プールを使い切ったら即リセット
         if (this.wordPoolIndex >= this.wordPool.length) {
             this.wordPool = this.shuffle(this.wordPool);
             this.wordPoolIndex = 0;
@@ -565,8 +573,9 @@ class Game {
 
         if (!this.questionTransition) {
             this.enemySpawnTimer++;
-            const rate = Math.max(50, (this.dynamicSpawnInterval || 80) - this.difficulty * 2);
-            if (this.enemySpawnTimer >= rate) {
+            // 最低20フレーム間隔で連続スポーンを試みる
+            // 実際にスポーンするかはspawnEnemy内のtargetOnScreenで制御
+            if (this.enemySpawnTimer >= 20) {
                 this.spawnEnemy();
                 this.enemySpawnTimer = 0;
             }
