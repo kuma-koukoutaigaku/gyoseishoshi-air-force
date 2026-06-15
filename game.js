@@ -90,8 +90,11 @@ class Game {
         }
 
         // カスタム問題をgroupごとに区切って表示
+        // 既存の問題集と同じ名前のカスタムカテゴリは表示しない
+        const builtInLabels = new Set(builtIn.map(([, cat]) => cat.label));
         const groups = new Map();
         for (const [key, cat] of custom) {
+            if (builtInLabels.has(cat.label)) continue;
             const groupName = cat.group || 'オリジナル';
             if (!groups.has(groupName)) groups.set(groupName, []);
             groups.get(groupName).push([key, cat]);

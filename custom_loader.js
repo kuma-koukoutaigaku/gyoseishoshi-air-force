@@ -104,6 +104,16 @@ class CustomQuestionLoader {
     async load() {
         if (!CUSTOM_CONFIG.sheetId) return;
 
+        // v20: 古いキャッシュをクリア（統合バグで不正データが残っている場合の対策）
+        try {
+            const cacheVer = localStorage.getItem('af_custom_cache_ver');
+            if (cacheVer !== 'v20') {
+                localStorage.removeItem('af_custom_cache');
+                localStorage.removeItem('af_custom_cache_time');
+                localStorage.setItem('af_custom_cache_ver', 'v20');
+            }
+        } catch {}
+
         try {
             // 全タブの gid・名前 を取得
             const tabs = await this.getSheetTabs();
