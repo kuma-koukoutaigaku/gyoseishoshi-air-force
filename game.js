@@ -531,8 +531,8 @@ class Game {
         const laneIdx = laneOptions[Math.floor(Math.random() * laneOptions.length)];
         const x = this.lanes[laneIdx];
 
-        // 速度にバラつきを持たせる（0.8x〜1.3xの範囲）
-        const speedMult = 0.8 + Math.random() * 0.5;
+        // 速度にバラつきを持たせる（0.7x〜1.0xの範囲）
+        const speedMult = 0.7 + Math.random() * 0.3;
 
         this.enemies.push({
             ...wordData,
