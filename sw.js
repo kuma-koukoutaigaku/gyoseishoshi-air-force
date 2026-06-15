@@ -14,6 +14,8 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+    // 同一オリジンのリクエストのみ処理、外部APIはスルー
+    if (!event.request.url.startsWith(self.location.origin)) return;
     event.respondWith(
         fetch(event.request).catch(() => caches.match(event.request))
     );
