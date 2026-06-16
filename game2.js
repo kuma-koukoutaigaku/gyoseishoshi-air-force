@@ -156,6 +156,22 @@ class Game {
         } catch {}
     }
 
+    getSectionRanges(pool) {
+        if (!pool || pool.length === 0) return [];
+        const ranges = [];
+        let currentSection = pool[0].section || '';
+        let from = 0;
+        for (let i = 1; i <= pool.length; i++) {
+            const sec = i < pool.length ? (pool[i].section || '') : null;
+            if (sec !== currentSection) {
+                ranges.push({ from, to: i, section: currentSection });
+                currentSection = sec;
+                from = i;
+            }
+        }
+        return ranges;
+    }
+
     buildSetButtons() {
         const container = document.getElementById('section-buttons');
         container.innerHTML = '';
@@ -165,8 +181,10 @@ class Game {
             btn.className = 'section-btn selected';
             btn.textContent = '最初から';
             btn.dataset.setStart = '0';
+            btn.dataset.setEnd = '0';
             container.appendChild(btn);
             this.setStart = 0;
+            this.setEnd = 0;
             return;
         }
 
@@ -174,31 +192,36 @@ class Game {
         const total = pool.length;
         const saved = this.getProgress(this.selectedCategory);
         const clears = this.getClears(this.selectedCategory);
-        const setCount = Math.ceil(total / this.setSize);
+        const ranges = this.getSectionRanges(pool);
 
-        for (let i = 0; i < setCount; i++) {
-            const from = i * this.setSize;
-            const to = Math.min(from + this.setSize, total);
-            const sectionName = pool[from].section || '';
-            const clearCount = clears[from] || 0;
+        let selectedFrom = 0;
+        let selectedTo = 0;
+
+        for (const range of ranges) {
+            const clearCount = clears[range.from] || 0;
 
             const btn = document.createElement('button');
-            const isSaved = (from === saved);
+            const isSaved = (range.from === saved);
+            if (isSaved) {
+                selectedFrom = range.from;
+                selectedTo = range.to;
+            }
             btn.className = 'section-btn' + (isSaved ? ' selected' : '');
-            btn.dataset.setStart = String(from);
+            btn.dataset.setStart = String(range.from);
+            btn.dataset.setEnd = String(range.to);
 
-            const label = `${from + 1}〜${to}`;
-            let hint = sectionName ? `<span class="set-section-hint">${sectionName}〜</span>` : '';
+            const count = range.to - range.from;
+            const label = range.section || `${range.from + 1}〜${range.to}`;
+            let countHint = `<span class="set-section-hint">${count}問</span>`;
             let badge = clearCount > 0 ? `<span class="set-clear-count">${clearCount}</span>` : '';
 
-            // ランキングのベストスコア表示
-            const rankings = this.getRankings(this.selectedCategory, from);
+            const rankings = this.getRankings(this.selectedCategory, range.from);
             let rankBadge = '';
             if (rankings.length > 0) {
                 rankBadge = `<span class="set-best-score">${rankings[0].score}pt</span>`;
             }
 
-            btn.innerHTML = label + hint + badge + rankBadge;
+            btn.innerHTML = label + countHint + badge + rankBadge;
 
             if (clearCount > 0) {
                 btn.classList.add('set-cleared');
@@ -207,7 +230,15 @@ class Game {
             container.appendChild(btn);
         }
 
-        this.setStart = saved < total ? saved : 0;
+        if (saved >= total && ranges.length > 0) {
+            selectedFrom = ranges[0].from;
+            selectedTo = ranges[0].to;
+        } else if (selectedTo === 0 && ranges.length > 0) {
+            selectedFrom = ranges[0].from;
+            selectedTo = ranges[0].to;
+        }
+        this.setStart = selectedFrom;
+        this.setEnd = selectedTo;
     }
 
     // 選択中のカテゴリに難易度付き問題があるか確認し、
@@ -246,10 +277,9 @@ class Game {
 
     getCategoryPool() {
         const pool = this.getRawCategoryPool();
-        const hasDiffQuestions = pool.some(q => q.difficulty);
+        const hasDiffQuestions = pool.some(q => q.difficulty && q.difficulty !== '普通');
 
         if (!hasDiffQuestions) {
-            // 難易度バリエーションなし → そのまま返す
             return pool;
         }
 
@@ -354,6 +384,7 @@ class Game {
             document.querySelectorAll('.section-btn').forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
             this.setStart = parseInt(btn.dataset.setStart);
+            this.setEnd = parseInt(btn.dataset.setEnd) || 0;
         });
 
         document.getElementById('start-btn').addEventListener('click', () => this.startGame());
@@ -508,7 +539,7 @@ class Game {
         if (this.playMode === 'random') {
             return this.shuffle(pool).slice(0, 10);
         }
-        return pool.slice(this.setStart, this.setStart + this.setSize);
+        return pool.slice(this.setStart, this.setEnd || (this.setStart + this.setSize));
     }
 
     shuffle(arr) {
@@ -1131,8 +1162,9 @@ class Game {
         if (this.playMode === 'sequential' && this.selectedCategory !== 'all' && this.lives > 0) {
             this.addClear(this.selectedCategory, this.setStart);
             const pool = this.getCategoryPool();
-            let next = this.setStart + this.setSize;
-            if (next >= pool.length) next = 0;
+            const ranges = this.getSectionRanges(pool);
+            const curIdx = ranges.findIndex(r => r.from === this.setStart);
+            let next = (curIdx >= 0 && curIdx + 1 < ranges.length) ? ranges[curIdx + 1].from : 0;
             this.saveProgress(this.selectedCategory, next);
 
             // ランキング保存
