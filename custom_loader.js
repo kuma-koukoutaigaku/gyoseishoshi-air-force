@@ -238,9 +238,28 @@ class CustomQuestionLoader {
 
             // ①②③④⑤ → {0}{1}{2}{3}{4} に変換
             const circleNums = ['①', '②', '③', '④', '⑤'];
-            circleNums.forEach((cn, i) => {
-                text = text.replaceAll(cn, `{${i}}`);
-            });
+            const hasMarkers = circleNums.some(cn => text.includes(cn)) || /\{[0-4]\}/.test(text);
+
+            if (hasMarkers) {
+                // 従来方式: ①②や{0}{1}マーカーがある場合はそのまま変換
+                circleNums.forEach((cn, i) => {
+                    text = text.replaceAll(cn, `{${i}}`);
+                });
+            } else {
+                // 新方式: 問題文中の回答単語を自動的に穴に変換
+                // 長い単語から先に置換（部分一致を防ぐ）
+                const sortedAnswers = answers
+                    .map((a, i) => ({ word: a, index: i }))
+                    .sort((a, b) => b.word.length - a.word.length);
+
+                for (const { word, index } of sortedAnswers) {
+                    // 最初の1つだけ置換（同じ単語が複数回出ても1つだけ穴にする）
+                    const pos = text.indexOf(word);
+                    if (pos !== -1) {
+                        text = text.substring(0, pos) + `{${index}}` + text.substring(pos + word.length);
+                    }
+                }
+            }
 
             if (!text || answers.length === 0) continue;
 
