@@ -397,6 +397,9 @@ class CustomQuestionLoader {
                 };
                 QUESTIONS[key] = questions;
             }
+
+            // セクション順にソート（同じセクションの問題をまとめる）
+            QUESTIONS[key] = this.sortBySection(QUESTIONS[key]);
         }
 
         this.loaded = true;
@@ -455,6 +458,21 @@ class CustomQuestionLoader {
         if (slashLines.length < 2) return false;
         var counts = slashLines.map(function(l) { return (l.match(/／/g) || []).length; });
         return counts.every(function(c) { return c === counts[0]; });
+    }
+
+    sortBySection(questions) {
+        const order = [];
+        const seen = new Set();
+        for (const q of questions) {
+            const sec = q.section || '';
+            if (!seen.has(sec)) {
+                seen.add(sec);
+                order.push(sec);
+            }
+        }
+        return questions.slice().sort((a, b) => {
+            return order.indexOf(a.section || '') - order.indexOf(b.section || '');
+        });
     }
 
     toSafeKey(str) {
