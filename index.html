@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=33">
-    <script>document.querySelector('link[href*="style.css"]').href='style.css?v='+new Date().getTime();</script>
+    <script>document.querySelector('link[href*="style.css"]').href='style.css?t='+new Date().getTime();</script>
 </head>
 <body>
     <div id="game-container">
@@ -91,17 +91,11 @@
     }
     </script>
     <script>
-    // 動的キャッシュバスター: 順序を保って読み込み
-    var _scripts = ['questions.js','custom_loader.js','game.js'];
-    var _v = new Date().getTime();
-    function _loadNext(i) {
-        if (i >= _scripts.length) return;
-        var s = document.createElement('script');
-        s.src = _scripts[i] + '?v=' + _v;
-        s.onload = function() { _loadNext(i + 1); };
-        document.body.appendChild(s);
-    }
-    _loadNext(0);
+    // 同期的キャッシュバスター: document.writeで順序保証
+    var _t = new Date().getTime();
+    document.write('<scr'+'ipt src="questions.js?t='+_t+'"></scr'+'ipt>');
+    document.write('<scr'+'ipt src="custom_loader.js?t='+_t+'"></scr'+'ipt>');
+    document.write('<scr'+'ipt src="game.js?t='+_t+'"></scr'+'ipt>');
     </script>
 </body>
 </html>
