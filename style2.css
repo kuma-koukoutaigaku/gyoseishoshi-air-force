@@ -403,7 +403,6 @@ body {
 .blank.active {
     border-bottom-color: #ffd700;
     color: #ffd700;
-    animation: activePulse 1.5s ease-in-out infinite;
 }
 
 .blank.filled {
@@ -463,6 +462,11 @@ body {
     padding: 0 2px;
     font-size: 0.6rem;
     border-bottom: none;
+    color: transparent;
+}
+
+.table-blank.filled {
+    color: #4caf50;
 }
 
 .q-table td:has(.blank.active) {
