@@ -158,15 +158,34 @@ class Game {
 
     getSectionRanges(pool) {
         if (!pool || pool.length === 0) return [];
-        const ranges = [];
+        const maxPerSet = 10;
+        const raw = [];
         let currentSection = pool[0].section || '';
         let from = 0;
         for (let i = 1; i <= pool.length; i++) {
             const sec = i < pool.length ? (pool[i].section || '') : null;
             if (sec !== currentSection) {
-                ranges.push({ from, to: i, section: currentSection });
+                raw.push({ from, to: i, section: currentSection });
                 currentSection = sec;
                 from = i;
+            }
+        }
+        const ranges = [];
+        for (const r of raw) {
+            const count = r.to - r.from;
+            if (count <= maxPerSet) {
+                ranges.push(r);
+            } else {
+                for (let s = r.from; s < r.to; s += maxPerSet) {
+                    const end = Math.min(s + maxPerSet, r.to);
+                    const part = Math.floor((s - r.from) / maxPerSet) + 1;
+                    const total = Math.ceil(count / maxPerSet);
+                    ranges.push({
+                        from: s,
+                        to: end,
+                        section: r.section + (total > 1 ? `(${part})` : '')
+                    });
+                }
             }
         }
         return ranges;
