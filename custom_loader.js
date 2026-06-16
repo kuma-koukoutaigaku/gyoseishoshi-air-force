@@ -341,8 +341,10 @@ class CustomQuestionLoader {
             var expandedBlanks = [];
             var remap = {};
             for (var pi = 0; pi < posOrder.length; pi++) {
-                remap[posOrder[pi]] = pi;
-                expandedBlanks.push(markerWords[posOrder[pi]]);
+                if (!(posOrder[pi] in remap)) {
+                    remap[posOrder[pi]] = expandedBlanks.length;
+                    expandedBlanks.push(markerWords[posOrder[pi]]);
+                }
             }
             for (var oldIdx in remap) {
                 var find = MARKER + oldIdx + MARKER;
