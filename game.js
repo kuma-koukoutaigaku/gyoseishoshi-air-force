@@ -76,12 +76,19 @@ class Game {
         allBtn.textContent = '全分野';
         container.appendChild(allBtn);
 
-        // 問題集(custom_以外)をフラットに、カスタム(custom_)はgroupで区切る
+        // 全カテゴリをgroupごとに整理して表示
         const entries = Object.entries(CATEGORIES);
-        const builtIn = entries.filter(([key]) => !key.startsWith('custom_'));
-        const custom = entries.filter(([key]) => key.startsWith('custom_'));
+        const noGroup = entries.filter(([, cat]) => !cat.group);
+        const groups = new Map();
+        for (const [key, cat] of entries) {
+            if (cat.group) {
+                if (!groups.has(cat.group)) groups.set(cat.group, []);
+                groups.get(cat.group).push([key, cat]);
+            }
+        }
 
-        for (const [key, cat] of builtIn) {
+        // グループなしカテゴリをフラットに表示
+        for (const [key, cat] of noGroup) {
             const btn = document.createElement('button');
             btn.className = 'category-btn';
             btn.dataset.category = key;
@@ -89,22 +96,16 @@ class Game {
             container.appendChild(btn);
         }
 
-        // カスタム問題をgroupごとに区切って表示
-        const groups = new Map();
-        for (const [key, cat] of custom) {
-            const groupName = cat.group || 'オリジナル';
-            if (!groups.has(groupName)) groups.set(groupName, []);
-            groups.get(groupName).push([key, cat]);
-        }
+        // グループありカテゴリをラベル付きで表示
         for (const [groupName, items] of groups) {
             const label = document.createElement('div');
-            label.className = 'category-group-label custom-group';
+            label.className = 'category-group-label';
             label.textContent = `── ${groupName} ──`;
             container.appendChild(label);
 
             for (const [key, cat] of items) {
                 const btn = document.createElement('button');
-                btn.className = 'category-btn custom-category';
+                btn.className = 'category-btn';
                 btn.dataset.category = key;
                 btn.textContent = cat.label;
                 container.appendChild(btn);
@@ -247,7 +248,7 @@ class Game {
         const hasDiffQuestions = pool.some(q => q.difficulty);
 
         if (!hasDiffQuestions) {
-            // 既存問題(questions.js)のみ → そのまま返す
+            // 難易度バリエーションなし → そのまま返す
             return pool;
         }
 
@@ -545,6 +546,12 @@ class Game {
 
         let html = this.renderQuestionHTML(q.text, q.blanks, false);
         questionText.innerHTML = `<span style="color:#666; font-size:0.75rem;">${q.source}</span><br>` + html;
+
+        // 最初の穴をアクティブにする
+        this.highlightActiveBlank(0);
+
+        // 表がある場合、最初の穴が見えるようにスクロール
+        requestAnimationFrame(() => this.scrollToFirstBlank());
 
         document.getElementById('q-current').textContent = this.currentQuestionIndex + 1;
         document.getElementById('q-total').textContent = this.questions.length;
@@ -891,6 +898,13 @@ class Game {
             }
 
             this.currentBlankIndex++;
+
+            // 次の穴をアクティブにして、見えるようにスクロール
+            if (this.currentBlankIndex < q.blanks.length) {
+                this.highlightActiveBlank(this.currentBlankIndex);
+                this.scrollToBlank(this.currentBlankIndex);
+            }
+
             if (this.currentBlankIndex >= q.blanks.length) {
                 const qTime = Date.now() - this.questionStartTime;
                 this.questionTimes.push(qTime);
@@ -962,7 +976,7 @@ class Game {
         if (this.isTableFormat(text)) {
             return this.renderTableHTML(text, blanks, filled);
         }
-        let html = text;
+        let html = text.replace(/\n/g, '<br>');
         blanks.forEach((blank, i) => {
             if (filled) {
                 html = html.replaceAll(`{${i}}`, `<span class="filled-blank">【${blank}】</span>`);
@@ -992,7 +1006,7 @@ class Game {
             html += '<div class="q-table-title">' + titleLines.join('<br>') + '</div>';
         }
 
-        html += '<table class="q-table">';
+        html += '<div class="q-table-wrap"><table class="q-table">';
         tableLines.forEach((line, rowIdx) => {
             let trimmed = line.trim();
             if (trimmed.startsWith('／')) trimmed = trimmed.substring(1);
@@ -1004,17 +1018,57 @@ class Game {
                 let content = cell.trim();
                 blanks.forEach((blank, i) => {
                     if (filled) {
-                        content = content.replaceAll(`{${i}}`, `<span class="filled-blank">【${blank}】</span>`);
+                        content = content.replaceAll(`{${i}}`, `<span class="filled-blank table-filled">【${blank}】</span>`);
                     } else {
-                        content = content.replaceAll(`{${i}}`, `<span class="blank blank-group-${i}">　　　</span>`);
+                        content = content.replaceAll(`{${i}}`, `<span class="blank blank-group-${i} table-blank">＿＿</span>`);
                     }
                 });
                 html += `<${tag}>${content}</${tag}>`;
             });
             html += '</tr>';
         });
-        html += '</table>';
+        html += '</table></div>';
         return html;
+    }
+
+    // 今埋めるべき穴だけをハイライト
+    highlightActiveBlank(blankIndex) {
+        document.querySelectorAll('#question-text .blank').forEach(el => {
+            el.classList.remove('active');
+        });
+        document.querySelectorAll('.blank-group-' + blankIndex).forEach(el => {
+            if (!el.classList.contains('filled')) {
+                el.classList.add('active');
+            }
+        });
+    }
+
+    // 穴が埋まった時、その穴が見えるように表を自動スクロール
+    scrollToBlank(blankIndex) {
+        const wrap = document.querySelector('#question-text .q-table-wrap');
+        if (!wrap) return;
+        const el = wrap.querySelector('.blank-group-' + blankIndex);
+        if (!el) return;
+        // 穴の位置がwrap内で見えるようにスクロール
+        const elRect = el.getBoundingClientRect();
+        const wrapRect = wrap.getBoundingClientRect();
+        const offset = elRect.left - wrapRect.left + wrap.scrollLeft - wrapRect.width / 2 + elRect.width / 2;
+        wrap.scrollTo({ left: Math.max(0, offset), behavior: 'smooth' });
+    }
+
+    // 問題表示時、最初の穴が見える位置にスクロール
+    scrollToFirstBlank() {
+        const wrap = document.querySelector('#question-text .q-table-wrap');
+        if (!wrap) return;
+        wrap.scrollLeft = 0;
+        const el = wrap.querySelector('.blank-group-0');
+        if (!el) return;
+        const elRect = el.getBoundingClientRect();
+        const wrapRect = wrap.getBoundingClientRect();
+        if (elRect.right > wrapRect.right || elRect.left < wrapRect.left) {
+            const offset = elRect.left - wrapRect.left + wrap.scrollLeft - 20;
+            wrap.scrollLeft = Math.max(0, offset);
+        }
     }
 
     endGame() {

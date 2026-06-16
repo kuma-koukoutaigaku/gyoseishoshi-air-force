@@ -6,19 +6,13 @@
 //   A列: 分野       （例: 民法, 行政法, 憲法）
 //   B列: セクション  （例: 総則, 物権 ※任意）
 //   C列: 出典        （例: 第5条, 最判平1.11.24）
-//   D列: 問題文      （穴は {0} {1} {2} {3} で指定、または ①②③④⑤）
-//   E列: 解答1       （{0} の正解。/区切りでデコイも指定可: 正解/デコイ1/デコイ2）
-//   F列: 解答2       （{1} の正解 ※なければ空欄）
-//   G列: 解答3       （{2} の正解 ※なければ空欄）
-//   H列: 解答4       （{3} の正解 ※なければ空欄）
-//   I列: 解答5       （{4} の正解 ※なければ空欄）
+//   D列: 問題文      （回答単語が自動検出され穴になる）
+//   E列: 解答1       （正解の単語）
+//   F列: 解答2       （※なければ空欄）
+//   G列: 解答3       （※なければ空欄）
+//   H列: 解答4       （※なければ空欄）
+//   I列: 解答5       （※なければ空欄）
 //   J列: デコイ      （任意。パイプ区切り 例: 間違い1|間違い2|間違い3）
-//
-// 【タブ対応・難易度】
-//   スプレッドシート内の全タブを自動的に読み込む。
-//   タブを分けても A列(分野) の値でボタンが作られる。
-//   タブ名に「難」を含む → 難、「激ムズ」を含む → 激ムズ、それ以外 → 普通
-//   同じ出典(I列)の問題は難易度バリエーションとして紐づけられる。
 //
 // 【設定方法】
 //   下の CUSTOM_CONFIG.sheetId にスプレッドシートIDを入れる
@@ -44,7 +38,6 @@ class CustomQuestionLoader {
             const html = await response.text();
             const tabs = [];
             const seenGids = new Set();
-            // {"gid":"0","name":"シート1"} のようなパターンを抽出
             const regex = /"gid":"(\d+)"[^}]*"name":"([^"]*)"/g;
             let match;
             while ((match = regex.exec(html)) !== null) {
@@ -54,7 +47,6 @@ class CustomQuestionLoader {
                     tabs.push({gid, name: match[2]});
                 }
             }
-            // 逆順パターン: "name":"...","gid":"..."
             if (tabs.length === 0) {
                 const regex2 = /"name":"([^"]*)"[^}]*"gid":"(\d+)"/g;
                 while ((match = regex2.exec(html)) !== null) {
@@ -65,7 +57,6 @@ class CustomQuestionLoader {
                     }
                 }
             }
-            // フォールバック: gidだけ取得
             if (tabs.length === 0) {
                 const regex3 = /gid=(\d+)/g;
                 while ((match = regex3.exec(html)) !== null) {
@@ -86,25 +77,104 @@ class CustomQuestionLoader {
         return `https://docs.google.com/spreadsheets/d/${CUSTOM_CONFIG.sheetId}/export?format=csv&gid=${gid}`;
     }
 
-    // タブ名から難易度を判定
     difficultyFromTabName(name) {
         if (name.includes('激ムズ')) return '激ムズ';
         if (name.includes('難')) return '難';
         return '普通';
     }
 
-    // タブ名からグループ名を判定
-    // 「問題集」を含む → null（トップレベル、questions.jsと同じ扱い）
-    // それ以外 → 'オリジナル' グループ
     groupFromTabName(name) {
         if (name.includes('問題集')) return null;
         return 'オリジナル';
     }
 
+    // 分野名からグループを自動判定
+    groupFromCategory(catName) {
+        if (catName.startsWith('行政') || catName === '国家賠償・損失補償') return '行政法';
+        return null;
+    }
+
+    // 旧キー(英語)→新キー(日本語)のlocalStorageマイグレーション
+    migrateLocalStorage() {
+        try {
+            if (localStorage.getItem('af_migrated_v2')) return;
+            const keyMap = {
+                constitution: '憲法',
+                admin_enforcement: '行政代執行法',
+                admin_procedure: '行政手続法',
+                admin_appeal: '行政不服審査法',
+                admin_litigation: '行政事件訴訟法',
+                state_compensation: '国家賠償・損失補償',
+                civil: '民法',
+                commercial: '商法・会社法'
+            };
+            for (const [oldKey, newKey] of Object.entries(keyMap)) {
+                for (const prefix of ['af_progress_', 'af_clears_']) {
+                    const oldVal = localStorage.getItem(prefix + oldKey);
+                    if (oldVal !== null) {
+                        const existingVal = localStorage.getItem(prefix + newKey);
+                        if (prefix === 'af_progress_') {
+                            const oldNum = parseInt(oldVal) || 0;
+                            const newNum = parseInt(existingVal) || 0;
+                            localStorage.setItem(prefix + newKey, Math.max(oldNum, newNum));
+                        } else {
+                            const oldObj = JSON.parse(oldVal || '{}');
+                            const newObj = JSON.parse(existingVal || '{}');
+                            for (const [k, v] of Object.entries(oldObj)) {
+                                newObj[k] = (newObj[k] || 0) + v;
+                            }
+                            localStorage.setItem(prefix + newKey, JSON.stringify(newObj));
+                        }
+                        localStorage.removeItem(prefix + oldKey);
+                    }
+                }
+                for (let s = 0; s < 300; s += 10) {
+                    const oldRank = localStorage.getItem('af_rank_' + oldKey + '_' + s);
+                    if (oldRank !== null) {
+                        const existingRank = localStorage.getItem('af_rank_' + newKey + '_' + s);
+                        if (existingRank) {
+                            const merged = [...JSON.parse(oldRank), ...JSON.parse(existingRank)];
+                            merged.sort((a, b) => b.score - a.score);
+                            localStorage.setItem('af_rank_' + newKey + '_' + s, JSON.stringify(merged.slice(0, 5)));
+                        } else {
+                            localStorage.setItem('af_rank_' + newKey + '_' + s, oldRank);
+                        }
+                        localStorage.removeItem('af_rank_' + oldKey + '_' + s);
+                    }
+                }
+            }
+            // custom_プレフィックス付きの旧データも移行
+            for (const [oldKey, newKey] of Object.entries(keyMap)) {
+                const cOld = 'custom_' + oldKey;
+                for (const prefix of ['af_progress_', 'af_clears_']) {
+                    const val = localStorage.getItem(prefix + cOld);
+                    if (val !== null) {
+                        if (prefix === 'af_progress_') {
+                            const cur = parseInt(localStorage.getItem(prefix + newKey)) || 0;
+                            localStorage.setItem(prefix + newKey, Math.max(parseInt(val) || 0, cur));
+                        } else {
+                            const curObj = JSON.parse(localStorage.getItem(prefix + newKey) || '{}');
+                            const oldObj = JSON.parse(val || '{}');
+                            for (const [k, v] of Object.entries(oldObj)) {
+                                curObj[k] = (curObj[k] || 0) + v;
+                            }
+                            localStorage.setItem(prefix + newKey, JSON.stringify(curObj));
+                        }
+                        localStorage.removeItem(prefix + cOld);
+                    }
+                }
+            }
+            localStorage.setItem('af_migrated_v2', '1');
+        } catch (e) {
+            console.warn('localStorage migration failed:', e);
+        }
+    }
+
     async load() {
         if (!CUSTOM_CONFIG.sheetId) return;
 
-        // キャッシュを毎回クリア（不正データ対策）
+        this.migrateLocalStorage();
+
         try {
             localStorage.removeItem('af_custom_cache');
             localStorage.removeItem('af_custom_cache_time');
@@ -112,27 +182,24 @@ class CustomQuestionLoader {
         } catch {}
 
         try {
-            // gid=0のCSVを直接取得（タブ自動検出を廃止、iPhone互換性のため）
             const url = this.getSheetUrlByGid(0);
             const response = await fetch(url);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!response.ok) throw new Error('HTTP ' + response.status);
             const csv = await response.text();
             if (!csv.trim()) throw new Error('Empty CSV');
 
-            // CSVがHTMLでないか確認（リダイレクト対策）
             if (csv.trim().startsWith('<!') || csv.trim().startsWith('<html')) {
                 throw new Error('Got HTML instead of CSV');
             }
 
             const lines = csv.split('\n').slice(1).filter(l => l.trim());
             const cats = [...new Set(lines.map(l => l.split(',')[0].replace(/"/g,'').trim()).filter(Boolean))];
-            console.log(`スプレッドシート読み込み: 分野=${cats.join(', ')} (${lines.length}行)`);
+            console.log('スプレッドシート読み込み: 分野=' + cats.join(', ') + ' (' + lines.length + '行)');
 
-            this.parseAndRegister(csv, '普通', 'オリジナル');
+            this.parseAndRegister(csv, '普通');
             console.log('カスタム問題を読み込みました');
         } catch (e) {
             console.warn('カスタム問題の読み込みに失敗:', e.message);
-            // ネットワーク失敗時はカスタム問題なしで動作（不正キャッシュ防止）
         }
     }
 
@@ -201,15 +268,13 @@ class CustomQuestionLoader {
         return rows;
     }
 
-    parseAndRegister(csv, tabDifficulty = '普通', tabGroup = null) {
+    parseAndRegister(csv, tabDifficulty) {
+        tabDifficulty = tabDifficulty || '普通';
         const rows = this.parseCSV(csv);
         if (rows.length < 2) return;
 
-        // ヘッダー行をスキップ（1行目はカラム名）
-        // 新列順: A:分野, B:セクション, C:出典, D:問題文, E-I:解答1-5, J:デコイ
         const dataRows = rows.slice(1).filter(r => r.length >= 5 && r[0] && r[3]);
 
-        // 分野ごとにグループ化
         const categories = {};
         const categoryOrder = [];
 
@@ -224,7 +289,6 @@ class CustomQuestionLoader {
                 if (row[i] && row[i].trim()) {
                     const parts = row[i].trim().split('/');
                     answers.push(parts[0].trim());
-                    // /以降はその穴のデコイ
                     for (let j = 1; j < parts.length; j++) {
                         if (parts[j].trim()) inlineDecoys.push(parts[j].trim());
                     }
@@ -233,43 +297,79 @@ class CustomQuestionLoader {
             const customDecoys = row[9]
                 ? row[9].split('|').map(d => d.trim()).filter(d => d)
                 : [];
-            // インラインデコイとJ列デコイを統合
             const allDecoys = [...inlineDecoys, ...customDecoys];
 
-            // 問題文中の回答単語を自動的に穴に変換
-            // 長い単語から先に置換（部分一致を防ぐ）
-            // 一時マーカーで置換してから{N}に変換（置換済みテキストとの衝突防止）
-            const TEMP = ' BLK_';
-            const sortedAnswers = answers
-                .map((a, i) => ({ word: a, index: i }))
-                .sort((a, b) => b.word.length - a.word.length);
+            // === 問題文中の回答単語を穴に変換 ===
+            // 表形式: 同じ単語の全出現を個別の穴にする（あり×2 → 2穴）
+            // 通常文: 同じ単語は1つの穴（撃つと全箇所同時に埋まる）
+            var isTable = this.isTableFormat(text);
+            var MARKER = '\x00';
+            var sortedWords = [...new Set(answers)].sort(function(a, b) { return b.length - a.length; });
+            var markerWords = [];
 
-            for (const { word, index } of sortedAnswers) {
-                if (text.includes(word)) {
-                    text = text.split(word).join(`${TEMP}${index}`);
+            if (isTable) {
+                // 表: 各出現を個別にマーク
+                for (var wi = 0; wi < sortedWords.length; wi++) {
+                    var word = sortedWords[wi];
+                    while (text.indexOf(word) !== -1) {
+                        var idx = markerWords.length;
+                        text = text.replace(word, MARKER + idx + MARKER);
+                        markerWords.push(word);
+                    }
+                }
+            } else {
+                // 通常文: 全出現を同じマーカーで一括置換（1穴で全箇所埋まる）
+                for (var wi = 0; wi < sortedWords.length; wi++) {
+                    var word = sortedWords[wi];
+                    if (text.indexOf(word) !== -1) {
+                        var idx = markerWords.length;
+                        while (text.indexOf(word) !== -1) {
+                            text = text.replace(word, MARKER + idx + MARKER);
+                        }
+                        markerWords.push(word);
+                    }
                 }
             }
-            // 一時マーカー → {N} に変換
-            for (let idx = 0; idx < answers.length; idx++) {
-                text = text.split(`${TEMP}${idx}`).join(`{${idx}}`);
+
+            // マーカーをテキスト内の出現順に振り直す
+            var posOrder = [];
+            var re = new RegExp(MARKER + '(\\d+)' + MARKER, 'g');
+            var mr;
+            while ((mr = re.exec(text)) !== null) {
+                posOrder.push(parseInt(mr[1]));
+            }
+            var expandedBlanks = [];
+            var remap = {};
+            for (var pi = 0; pi < posOrder.length; pi++) {
+                remap[posOrder[pi]] = pi;
+                expandedBlanks.push(markerWords[posOrder[pi]]);
+            }
+            for (var oldIdx in remap) {
+                var find = MARKER + oldIdx + MARKER;
+                var replace = '{' + remap[oldIdx] + '}';
+                while (text.indexOf(find) !== -1) {
+                    text = text.replace(find, replace);
+                }
             }
 
             // 後方互換: ①②③④⑤ が残っていれば変換
-            const circleNums = ['①', '②', '③', '④', '⑤'];
-            circleNums.forEach((cn, i) => {
-                text = text.replaceAll(cn, `{${i}}`);
-            });
+            var circleNums = ['①', '②', '③', '④', '⑤'];
+            for (var ci = 0; ci < circleNums.length; ci++) {
+                while (text.indexOf(circleNums[ci]) !== -1) {
+                    text = text.replace(circleNums[ci], '{' + ci + '}');
+                }
+            }
 
-            if (!text || answers.length === 0) continue;
+            if (!text || expandedBlanks.length === 0) continue;
 
             if (!categories[category]) {
                 categories[category] = [];
                 categoryOrder.push(category);
             }
 
-            const q = {
+            var q = {
                 text: text,
-                blanks: answers,
+                blanks: expandedBlanks,
                 decoys: allDecoys,
                 source: source,
                 difficulty: tabDifficulty
@@ -283,17 +383,24 @@ class CustomQuestionLoader {
         this.autoGenerateDecoys(categories);
 
         // CATEGORIES と QUESTIONS に登録
-        // スプレッドシートの問題は常にcustom_プレフィックスで分離
+        // スプレッドシートが唯一のソース: 既存データをクリアして置き換え
+        if (!this._cleared) {
+            for (const key of Object.keys(CATEGORIES)) delete CATEGORIES[key];
+            for (const key of Object.keys(QUESTIONS)) delete QUESTIONS[key];
+            this._cleared = true;
+        }
+
         for (const catName of categoryOrder) {
             const questions = categories[catName];
-            const key = 'custom_' + this.toSafeKey(catName);
+            const key = this.toSafeKey(catName);
+            const group = this.groupFromCategory(catName);
 
             if (QUESTIONS[key]) {
                 QUESTIONS[key] = QUESTIONS[key].concat(questions);
             } else {
                 CATEGORIES[key] = {
                     label: catName,
-                    group: tabGroup
+                    group: group
                 };
                 QUESTIONS[key] = questions;
             }
@@ -303,14 +410,12 @@ class CustomQuestionLoader {
     }
 
     autoGenerateDecoys(categories) {
-        // 全カテゴリの全正解を収集（グローバルプール）
         const globalPool = [];
         for (const questions of Object.values(categories)) {
             for (const q of questions) {
                 globalPool.push(...q.blanks);
             }
         }
-        // 既存の QUESTIONS からもプール追加
         for (const questions of Object.values(QUESTIONS)) {
             for (const q of questions) {
                 if (q.blanks) globalPool.push(...q.blanks);
@@ -318,37 +423,40 @@ class CustomQuestionLoader {
         }
 
         for (const [catName, questions] of Object.entries(categories)) {
-            // カテゴリ内の全正解
             const catPool = [];
             for (const q of questions) {
                 catPool.push(...q.blanks);
             }
 
             for (const q of questions) {
-                if (q.decoys.length > 0) continue; // 手動指定済み
+                if (q.decoys.length > 0) continue;
 
                 const correctSet = new Set(q.blanks);
-
-                // まずカテゴリ内プールから候補を取得
                 let candidates = [...new Set(catPool.filter(a => !correctSet.has(a)))];
 
-                // 足りなければグローバルプールから追加
                 if (candidates.length < 5) {
                     const extra = [...new Set(globalPool.filter(a => !correctSet.has(a) && !candidates.includes(a)))];
                     candidates = candidates.concat(extra);
                 }
 
-                // シャッフル
                 for (let i = candidates.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
                 }
 
-                // 正解数 + 3〜5 のデコイを確保
                 const needed = Math.max(5, q.blanks.length + 3);
                 q.decoys = candidates.slice(0, needed);
             }
         }
+    }
+
+    isTableFormat(text) {
+        var lines = text.split('\n').filter(function(l) { return l.trim(); });
+        if (lines.length < 2) return false;
+        var slashLines = lines.filter(function(l) { return (l.match(/／/g) || []).length >= 1; });
+        if (slashLines.length < 2) return false;
+        var counts = slashLines.map(function(l) { return (l.match(/／/g) || []).length; });
+        return counts.every(function(c) { return c === counts[0]; });
     }
 
     toSafeKey(str) {
