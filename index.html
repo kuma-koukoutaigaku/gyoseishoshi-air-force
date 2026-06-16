@@ -10,8 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=33">
-    <script>document.querySelector('link[href*="style.css"]').href='style.css?t='+new Date().getTime();</script>
+    <link rel="stylesheet" href="style2.css">
 </head>
 <body>
     <div id="game-container">
@@ -80,7 +79,6 @@
     </div>
 
     <script>
-    // SW完全削除: 登録済みのSWを解除してキャッシュも全削除
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(regs => {
             regs.forEach(r => r.unregister());
@@ -90,12 +88,8 @@
         }
     }
     </script>
-    <script>
-    // 同期的キャッシュバスター: document.writeで順序保証
-    var _t = new Date().getTime();
-    document.write('<scr'+'ipt src="questions.js?t='+_t+'"></scr'+'ipt>');
-    document.write('<scr'+'ipt src="custom_loader.js?t='+_t+'"></scr'+'ipt>');
-    document.write('<scr'+'ipt src="game.js?t='+_t+'"></scr'+'ipt>');
-    </script>
+    <script src="questions2.js"></script>
+    <script src="loader2.js"></script>
+    <script src="game2.js"></script>
 </body>
 </html>
