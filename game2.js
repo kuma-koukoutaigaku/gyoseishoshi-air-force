@@ -98,14 +98,15 @@ class Game {
 
         // グループありカテゴリをラベル付きで表示
         for (const [groupName, items] of groups) {
+            const isOriginal = groupName === 'オリジナル';
             const label = document.createElement('div');
-            label.className = 'category-group-label';
+            label.className = 'category-group-label' + (isOriginal ? ' custom-group' : '');
             label.textContent = `── ${groupName} ──`;
             container.appendChild(label);
 
             for (const [key, cat] of items) {
                 const btn = document.createElement('button');
-                btn.className = 'category-btn';
+                btn.className = 'category-btn' + (isOriginal ? ' custom-category' : '');
                 btn.dataset.category = key;
                 btn.textContent = cat.label;
                 container.appendChild(btn);

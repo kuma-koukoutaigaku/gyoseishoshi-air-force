@@ -1,12 +1,12 @@
 const CATEGORIES = {
-    constitution: { label: '憲法', group: null },
-    admin_enforcement: { label: '行政代執行法', group: '行政法' },
-    admin_procedure: { label: '行政手続法', group: '行政法' },
-    admin_appeal: { label: '行政不服審査法', group: '行政法' },
-    admin_litigation: { label: '行政事件訴訟法', group: '行政法' },
-    state_compensation: { label: '国家賠償・損失補償', group: '行政法' },
-    civil: { label: '民法', group: null },
-    commercial: { label: '商法・会社法', group: null },
+    constitution: { label: '憲法', group: '問題集' },
+    admin_enforcement: { label: '行政代執行法', group: '問題集' },
+    admin_procedure: { label: '行政手続法', group: '問題集' },
+    admin_appeal: { label: '行政不服審査法', group: '問題集' },
+    admin_litigation: { label: '行政事件訴訟法', group: '問題集' },
+    state_compensation: { label: '国家賠償・損失補償', group: '問題集' },
+    civil: { label: '民法', group: '問題集' },
+    commercial: { label: '商法・会社法', group: '問題集' },
 };
 
 const QUESTIONS = {
