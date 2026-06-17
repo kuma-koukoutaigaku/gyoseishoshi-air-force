@@ -191,6 +191,17 @@ class Game {
         return ranges;
     }
 
+    getFixedRanges(pool) {
+        if (!pool || pool.length === 0) return [];
+        const size = 10;
+        const ranges = [];
+        for (let i = 0; i < pool.length; i += size) {
+            const end = Math.min(i + size, pool.length);
+            ranges.push({ from: i, to: end, section: '' });
+        }
+        return ranges;
+    }
+
     buildSetButtons() {
         const container = document.getElementById('section-buttons');
         container.innerHTML = '';
@@ -211,7 +222,8 @@ class Game {
         const total = pool.length;
         const saved = this.getProgress(this.selectedCategory);
         const clears = this.getClears(this.selectedCategory);
-        const ranges = this.getSectionRanges(pool);
+        const isOriginal = this.selectedCategory.startsWith('ss_');
+        const ranges = isOriginal ? this.getSectionRanges(pool) : this.getFixedRanges(pool);
 
         let selectedFrom = 0;
         let selectedTo = 0;
@@ -1181,7 +1193,8 @@ class Game {
         if (this.playMode === 'sequential' && this.selectedCategory !== 'all' && this.lives > 0) {
             this.addClear(this.selectedCategory, this.setStart);
             const pool = this.getCategoryPool();
-            const ranges = this.getSectionRanges(pool);
+            const isOrig = this.selectedCategory.startsWith('ss_');
+            const ranges = isOrig ? this.getSectionRanges(pool) : this.getFixedRanges(pool);
             const curIdx = ranges.findIndex(r => r.from === this.setStart);
             let next = (curIdx >= 0 && curIdx + 1 < ranges.length) ? ranges[curIdx + 1].from : 0;
             this.saveProgress(this.selectedCategory, next);
