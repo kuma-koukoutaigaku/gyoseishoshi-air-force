@@ -88,12 +88,6 @@ class CustomQuestionLoader {
         return 'オリジナル';
     }
 
-    // 分野名からグループを自動判定
-    groupFromCategory(catName) {
-        if (catName.startsWith('行政') || catName === '国家賠償・損失補償') return '行政法';
-        return null;
-    }
-
     // 旧キー(英語)→新キー(日本語)のlocalStorageマイグレーション
     migrateLocalStorage() {
         try {
@@ -172,6 +166,8 @@ class CustomQuestionLoader {
 
     async load() {
         if (!CUSTOM_CONFIG.sheetId) return;
+        if (this.loaded) return;
+        this.loaded = true;
 
         this.migrateLocalStorage();
 
