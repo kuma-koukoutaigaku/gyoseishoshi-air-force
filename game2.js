@@ -246,13 +246,27 @@ class Game {
             let countHint = isOriginal ? `<span class="set-section-hint">${count}問</span>` : '';
             let badge = clearCount > 0 ? `<span class="set-clear-count">${clearCount}</span>` : '';
 
+            // 問題集: セット内のセクション名を小さく表示
+            let subSections = '';
+            if (!isOriginal) {
+                const secs = [];
+                let cur = '';
+                for (let qi = range.from; qi < range.to; qi++) {
+                    if (pool[qi].section) cur = pool[qi].section;
+                    if (cur && secs[secs.length - 1] !== cur) secs.push(cur);
+                }
+                if (secs.length > 0) {
+                    subSections = `<span class="set-sub-sections">${secs.join('・')}</span>`;
+                }
+            }
+
             const rankings = this.getRankings(this.selectedCategory, range.from);
             let rankBadge = '';
             if (rankings.length > 0) {
                 rankBadge = `<span class="set-best-score">${rankings[0].score}pt</span>`;
             }
 
-            btn.innerHTML = label + countHint + badge + rankBadge;
+            btn.innerHTML = label + countHint + subSections + badge + rankBadge;
 
             if (clearCount > 0) {
                 btn.classList.add('set-cleared');
