@@ -243,7 +243,7 @@ class Game {
 
             const count = range.to - range.from;
             const label = range.section || `${range.from + 1}〜${range.to}`;
-            let countHint = `<span class="set-section-hint">${count}問</span>`;
+            let countHint = isOriginal ? `<span class="set-section-hint">${count}問</span>` : '';
             let badge = clearCount > 0 ? `<span class="set-clear-count">${clearCount}</span>` : '';
 
             const rankings = this.getRankings(this.selectedCategory, range.from);
