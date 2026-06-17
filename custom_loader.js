@@ -295,7 +295,7 @@ class CustomQuestionLoader {
                 }
             }
             const customDecoys = row[9]
-                ? row[9].split('|').map(d => d.trim()).filter(d => d)
+                ? row[9].split(/[|｜]/).map(d => d.trim()).filter(d => d)
                 : [];
             const allDecoys = [...inlineDecoys, ...customDecoys];
 
