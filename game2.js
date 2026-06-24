@@ -257,6 +257,27 @@ class Game {
             return;
         }
 
+        if (this.gameType === 'multi-choice') {
+            const pool = this.getCategoryPool();
+            for (let i = 0; i < pool.length; i++) {
+                const q = pool[i];
+                const btn = document.createElement('button');
+                if (i === 0) {
+                    btn.className = 'section-btn selected';
+                    this.setStart = 0;
+                    this.setEnd = 1;
+                } else {
+                    btn.className = 'section-btn';
+                }
+                btn.dataset.setStart = String(i);
+                btn.dataset.setEnd = String(i + 1);
+                // 多肢選択は問題番号がテキスト内にないのでインデックスを使う
+                btn.innerHTML = `問題${i + 1}：${q.section || '（セクション名なし）'}`;
+                container.appendChild(btn);
+            }
+            return;
+        }
+
         if (this.selectedCategory === 'all') {
             const btn = document.createElement('button');
             btn.className = 'section-btn selected';
@@ -476,7 +497,8 @@ class Game {
                     document.getElementById('mode-select').classList.remove('hidden');
                 } else if (this.gameType === 'multi-choice') {
                     this.selectedCategory = 'takushi_kenpo';
-                    document.getElementById('mode-select').classList.remove('hidden');
+                    document.getElementById('mode-select').classList.add('hidden');
+                    document.getElementById('difficulty-select').classList.add('hidden');
                 } else if (this.gameType === 'descriptive') {
                     this.selectedCategory = 'kijutsu_行政法';
                     document.getElementById('mode-select').classList.add('hidden');
