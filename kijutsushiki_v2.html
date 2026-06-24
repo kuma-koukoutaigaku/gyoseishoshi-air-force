@@ -577,7 +577,7 @@ body {
 
     <div class="sheet-area">
         <div class="sheet-label">
-            <span>📝 解答用紙</span>
+            <span>解答用紙</span>
             <span class="char-info" id="char-info">40字</span>
         </div>
         <div class="grid-wrap">
@@ -634,24 +634,24 @@ body {
         </div>
 
         <!-- 問題文 -->
-        <div class="sec-title"><span class="sec-icon">📋</span> 問題</div>
+        <div class="sec-title"><span class="sec-icon"></span> 問題</div>
         <div class="r-question" id="r-question"></div>
 
         <!-- 模範解答 -->
-        <div class="sec-title"><span class="sec-icon">✍️</span> 模範解答</div>
+        <div class="sec-title"><span class="sec-icon"></span> 模範解答</div>
         <div class="r-model-answer" id="r-model-answer"></div>
 
         <!-- 採点基準 -->
-        <div class="sec-title"><span class="sec-icon">📊</span> 採点基準</div>
+        <div class="sec-title"><span class="sec-icon"></span> 採点基準</div>
         <div class="criteria-list" id="r-criteria"></div>
 
         <!-- 解説 -->
-        <div class="sec-title" id="r-exp-title"><span class="sec-icon">💡</span> 解説</div>
+        <div class="sec-title" id="r-exp-title"><span class="sec-icon"></span> 解説</div>
         <div class="r-explanation" id="r-explanation"></div>
 
         <!-- 採点者の目 -->
         <div class="r-scorer-note util-hidden" id="r-scorer-note">
-            <div class="scorer-label">🧑‍🏫 採点者の目</div>
+            <div class="scorer-label">採点者の目</div>
             <div id="r-scorer-note-text"></div>
         </div>
 
@@ -830,16 +830,16 @@ class KijutsushikiV2 {
         const gradeEl = document.getElementById('r-grade');
         gradeEl.className = 'result-grade';
         if (this.score >= 18) {
-            gradeEl.textContent = '🌟 完璧！';
+            gradeEl.textContent = '完璧！';
             gradeEl.classList.add('excellent');
         } else if (this.score >= 14) {
-            gradeEl.textContent = '✨ よくできました！';
+            gradeEl.textContent = 'よくできました！';
             gradeEl.classList.add('good');
         } else if (this.score >= 8) {
-            gradeEl.textContent = '📖 もう少し！';
+            gradeEl.textContent = 'もう少し！';
             gradeEl.classList.add('fair');
         } else {
-            gradeEl.textContent = '📚 復習しましょう';
+            gradeEl.textContent = '復習しましょう';
             gradeEl.classList.add('poor');
         }
 

@@ -877,8 +877,7 @@ class Game {
 
     updateHUD() {
         document.getElementById('score').textContent = this.score;
-        const livesEl = document.getElementById('lives');
-        livesEl.textContent = '♥'.repeat(Math.max(0, this.lives)) + '♡'.repeat(Math.max(0, 5 - this.lives));
+        document.getElementById('lives').innerHTML = '●'.repeat(this.lives) + '○'.repeat(Math.max(0, 5 - this.lives));
 
         // タイマー表示
         if (this.gameStartTime > 0) {
