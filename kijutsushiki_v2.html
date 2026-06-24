@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>記述式 - プロトタイプv2</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+    --bg-deep: #080820;
+    --bg-card: rgba(15, 15, 45, 0.9);
+    --bg-subtle: rgba(255,255,255,0.03);
+    --border: #2a2a5a;
+    --border-light: #3a3a6a;
+    --text: #d8d8e8;
+    --text-dim: #888;
+    --text-faint: #555;
+    --accent: #6a8aff;
+    --accent-dim: #4a4a8a;
+    --gold: #ffd700;
+    --green: #4caf50;
+    --green-dim: rgba(76, 175, 80, 0.15);
+    --orange: #e9967a;
+    --red: #ff6b6b;
+    --particle-bg: rgba(255,255,255,0.02);
+}
+
+body {
+    background: var(--bg-deep);
+    color: var(--text);
+    font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+}
+
+/* ========== SCREEN CONTAINER ========== */
+.screen {
+    display: none;
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 0 10px;
+}
+.screen.active { display: block; }
+
+/* ========== HEADER ========== */
+.q-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg-deep);
+    padding: 10px 0 8px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.q-header .q-num {
+    font-size: 0.8rem;
+    color: var(--accent);
+    font-weight: bold;
+}
+
+.q-header .q-cat {
+    font-size: 0.75rem;
+    color: var(--orange);
+    background: rgba(233, 150, 122, 0.1);
+    padding: 2px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(233, 150, 122, 0.2);
+}
+
+.q-header .q-score {
+    font-size: 0.8rem;
+    color: var(--gold);
+    font-weight: bold;
+}
+
+/* ========== 問題文 ========== */
+.q-text-box {
+    margin: 12px 0;
+    padding: 14px 12px;
+    background: var(--bg-card);
+    border-radius: 10px;
+    font-size: 0.88rem;
+    line-height: 1.85;
+    color: #ccc;
+}
+
+.q-text-box .q-instruction {
+    display: block;
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: var(--accent);
+    font-style: italic;
+}
+
+/* ========== 作文用紙（解答グリッド） ========== */
+.sheet-area {
+    margin: 0 0 10px;
+}
+
+.sheet-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    padding: 0 2px;
+}
+
+.sheet-label .char-info {
+    color: var(--accent);
+}
+
+.grid-wrap {
+    border: 2px solid var(--border-light);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--bg-card);
+}
+
+.grid {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.cell {
+    width: calc(100% / 10);
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(0.9rem, 4vw, 1.3rem);
+    border-right: 1px solid rgba(60, 60, 100, 0.4);
+    border-bottom: 1px solid rgba(60, 60, 100, 0.4);
+    position: relative;
+    cursor: default;
+    user-select: none;
+    transition: all 0.2s;
+    color: var(--text);
+}
+
+/* 行番号の区切り線 */
+.cell:nth-child(10n) {
+    border-right: none;
+}
+
+/* 最終行の下線を消す */
+.grid > .cell:nth-last-child(-n+10) {
+    border-bottom: none;
+}
+
+/* リード文 */
+.cell.lead {
+    color: #999;
+    background: rgba(255,255,255, 0.015);
+}
+
+/* 助詞（最初から見える） */
+.cell.particle {
+    color: #888;
+    background: var(--particle-bg);
+}
+
+/* 隠れマス */
+.cell.hidden {
+    color: #6666aa;
+    background: rgba(40, 40, 100, 0.35);
+    cursor: pointer;
+}
+
+.cell.hidden:active {
+    background: rgba(70, 70, 140, 0.5);
+}
+
+/* めくったマス */
+.cell.revealed {
+    color: var(--gold);
+    background: rgba(255, 215, 0, 0.06);
+    animation: revealPop 0.25s ease;
+}
+
+@keyframes revealPop {
+    0% { transform: scale(0.8); opacity: 0; }
+    60% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* 採点キーワードのマス（下線付き） */
+.cell.kw {
+    border-bottom: 2px solid transparent;
+}
+.cell.kw.revealed {
+    border-bottom-color: var(--green);
+}
+
+/* 空マス */
+.cell.empty {
+    background: rgba(8, 8, 30, 0.6);
+    cursor: default;
+}
+
+/* ========== 得点 / めくり情報 ========== */
+.info-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 4px;
+    font-size: 0.8rem;
+}
+
+.info-bar .score-part {
+    color: var(--gold);
+    font-weight: bold;
+}
+
+.info-bar .reveal-part {
+    color: var(--orange);
+    font-size: 0.75rem;
+}
+
+/* ========== ボタン群 ========== */
+.btn-area {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    padding: 6px 0 24px;
+}
+
+.btn {
+    padding: 12px 24px;
+    border: 2px solid var(--accent-dim);
+    background: rgba(40, 40, 100, 0.5);
+    color: var(--text);
+    border-radius: 10px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.btn:active {
+    transform: scale(0.96);
+}
+
+.btn.primary {
+    background: linear-gradient(135deg, rgba(60,60,180,0.8), rgba(80,60,200,0.8));
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: bold;
+    box-shadow: 0 2px 12px rgba(100, 100, 255, 0.2);
+}
+
+.btn.ghost {
+    font-size: 0.78rem;
+    padding: 8px 14px;
+    border-color: #444;
+    color: #777;
+    background: transparent;
+}
+
+/* ================================================================ */
+/* =================== 解説画面 (Result Screen) =================== */
+/* ================================================================ */
+
+.result-wrap {
+    padding-bottom: 40px;
+}
+
+/* --- スコアヘッダー --- */
+.result-score-header {
+    text-align: center;
+    padding: 20px 0 16px;
+}
+
+.result-big-score {
+    font-size: 3rem;
+    font-weight: 900;
+    background: linear-gradient(180deg, #ffd700 0%, #ff9500 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1;
+}
+
+.result-big-score .denom {
+    font-size: 1.2rem;
+    -webkit-text-fill-color: #666;
+}
+
+.result-grade {
+    font-size: 0.9rem;
+    margin-top: 6px;
+    padding: 3px 16px;
+    border-radius: 12px;
+    display: inline-block;
+}
+
+.result-grade.excellent {
+    color: var(--gold);
+    background: rgba(255, 215, 0, 0.1);
+    border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.result-grade.good {
+    color: var(--green);
+    background: var(--green-dim);
+    border: 1px solid rgba(76, 175, 80, 0.2);
+}
+
+.result-grade.fair {
+    color: var(--orange);
+    background: rgba(233, 150, 122, 0.1);
+    border: 1px solid rgba(233, 150, 122, 0.2);
+}
+
+.result-grade.poor {
+    color: var(--red);
+    background: rgba(255, 107, 107, 0.1);
+    border: 1px solid rgba(255, 107, 107, 0.2);
+}
+
+/* --- 統計カード --- */
+.stats-cards {
+    display: flex;
+    gap: 8px;
+    margin: 12px 0 16px;
+}
+
+.stat-card {
+    flex: 1;
+    text-align: center;
+    padding: 10px 4px;
+    background: var(--bg-card);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+}
+
+.stat-card .sv {
+    font-size: 1.3rem;
+    font-weight: bold;
+}
+
+.stat-card .sv.gold { color: var(--gold); }
+.stat-card .sv.green { color: var(--green); }
+.stat-card .sv.red { color: var(--red); }
+
+.stat-card .sl {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+
+/* --- セクションタイトル --- */
+.sec-title {
+    font-size: 0.78rem;
+    color: var(--accent);
+    font-weight: bold;
+    padding: 12px 0 6px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sec-title .sec-icon {
+    font-size: 0.9rem;
+}
+
+/* --- 問題文（解説画面） --- */
+.r-question {
+    font-size: 0.82rem;
+    line-height: 1.7;
+    color: #aaa;
+    padding: 10px 12px;
+    background: var(--bg-card);
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+/* --- 模範解答 --- */
+.r-model-answer {
+    padding: 14px;
+    background: var(--bg-card);
+    border-radius: 10px;
+    font-size: 0.95rem;
+    line-height: 1.9;
+    color: #e8e8e8;
+    margin-bottom: 16px;
+    position: relative;
+}
+
+.r-model-answer .kw-mark {
+    color: var(--green);
+    font-weight: bold;
+    border-bottom: 2px solid var(--green);
+    padding-bottom: 1px;
+}
+
+.r-model-answer .lead-mark {
+    color: #999;
+}
+
+/* --- 採点基準カード --- */
+.criteria-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.criteria-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background: var(--bg-card);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    transition: border-color 0.3s;
+}
+
+.criteria-card.hit {
+    border-color: var(--green);
+    background: rgba(76, 175, 80, 0.05);
+}
+
+.criteria-card.miss {
+    border-color: var(--red);
+    background: rgba(255, 107, 107, 0.03);
+}
+
+.criteria-card .c-status {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.criteria-card.hit .c-status {
+    background: var(--green-dim);
+    color: var(--green);
+}
+
+.criteria-card.miss .c-status {
+    background: rgba(255, 107, 107, 0.1);
+    color: var(--red);
+}
+
+.criteria-card .c-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.criteria-card .c-keyword {
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #ddd;
+    word-break: break-all;
+}
+
+.criteria-card.hit .c-keyword {
+    color: var(--green);
+}
+
+.criteria-card .c-desc {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+
+.criteria-card .c-pts {
+    font-size: 1rem;
+    font-weight: bold;
+    color: var(--gold);
+    flex-shrink: 0;
+    min-width: 36px;
+    text-align: right;
+}
+
+.criteria-card.miss .c-pts {
+    color: var(--text-faint);
+    text-decoration: line-through;
+}
+
+/* --- 解説テキスト --- */
+.r-explanation {
+    padding: 12px;
+    background: rgba(100, 138, 255, 0.05);
+    border-radius: 10px;
+    border: 1px solid rgba(100, 138, 255, 0.15);
+    font-size: 0.82rem;
+    line-height: 1.8;
+    color: #bbb;
+    margin-bottom: 16px;
+}
+
+.r-explanation .exp-point {
+    color: var(--accent);
+    font-weight: bold;
+}
+
+/* --- 採点者の目 --- */
+.r-scorer-note {
+    padding: 14px;
+    background: rgba(233, 150, 122, 0.06);
+    border-radius: 10px;
+    border: 1px solid rgba(233, 150, 122, 0.15);
+    font-size: 0.8rem;
+    line-height: 1.75;
+    color: #bbb;
+    margin-bottom: 16px;
+    position: relative;
+}
+
+.r-scorer-note .scorer-label {
+    display: inline-block;
+    background: var(--orange);
+    color: #1a1a2e;
+    font-size: 0.7rem;
+    font-weight: bold;
+    padding: 2px 10px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+
+/* --- 出典 --- */
+.r-source {
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    text-align: right;
+    margin-bottom: 20px;
+}
+
+/* --- 解説画面ボタン --- */
+.result-btn-area {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    padding: 10px 0 30px;
+}
+
+/* ========== ユーティリティ ========== */
+.util-hidden { display: none !important; }
+
+/* ========== スクロールバー ========== */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ============================================== -->
+<!-- ============= 問題画面 ======================= -->
+<!-- ============================================== -->
+<div class="screen active" id="question-screen">
+
+    <div class="q-header">
+        <span class="q-num" id="q-num">Q.1 / 3</span>
+        <span class="q-cat" id="q-cat">行政法</span>
+        <span class="q-score" id="q-score-live">20点</span>
+    </div>
+
+    <div class="q-text-box" id="q-text">
+        <!-- 問題文がここに入る -->
+    </div>
+
+    <div class="sheet-area">
+        <div class="sheet-label">
+            <span>📝 解答用紙</span>
+            <span class="char-info" id="char-info">40字</span>
+        </div>
+        <div class="grid-wrap">
+            <div class="grid" id="answer-grid">
+                <!-- セルがここに生成される -->
+            </div>
+        </div>
+    </div>
+
+    <div class="info-bar">
+        <span class="score-part">得点: <span id="live-score">20</span> / 20</span>
+        <span class="reveal-part">めくり: <span id="reveal-count">0</span>字</span>
+    </div>
+
+    <div class="btn-area">
+        <button class="btn ghost" id="btn-peek">全めくり</button>
+        <button class="btn primary" id="btn-answer">回答する</button>
+    </div>
+    <div style="text-align:center; padding-bottom: 20px;">
+        <button class="btn ghost" onclick="window.location.href='index.html'">タイトルへ戻る</button>
+    </div>
+</div>
+
+<!-- ============================================== -->
+<!-- ============= 解説画面 ======================= -->
+<!-- ============================================== -->
+<div class="screen" id="result-screen">
+    <div class="result-wrap">
+
+        <!-- スコア -->
+        <div class="result-score-header">
+            <div class="result-big-score" id="r-score">16 <span class="denom">/ 20</span></div>
+            <div class="result-grade good" id="r-grade">よくできました！</div>
+        </div>
+
+        <!-- 統計 -->
+        <div class="stats-cards">
+            <div class="stat-card">
+                <div class="sv gold" id="r-stat-score">16</div>
+                <div class="sl">獲得点</div>
+            </div>
+            <div class="stat-card">
+                <div class="sv green" id="r-stat-revealed">5</div>
+                <div class="sl">めくった字</div>
+            </div>
+            <div class="stat-card">
+                <div class="sv red" id="r-stat-penalty">-4</div>
+                <div class="sl">減点</div>
+            </div>
+            <div class="stat-card">
+                <div class="sv" id="r-stat-total" style="color:#aaa">40</div>
+                <div class="sl">全体文字数</div>
+            </div>
+        </div>
+
+        <!-- 問題文 -->
+        <div class="sec-title"><span class="sec-icon">📋</span> 問題</div>
+        <div class="r-question" id="r-question"></div>
+
+        <!-- 模範解答 -->
+        <div class="sec-title"><span class="sec-icon">✍️</span> 模範解答</div>
+        <div class="r-model-answer" id="r-model-answer"></div>
+
+        <!-- 採点基準 -->
+        <div class="sec-title"><span class="sec-icon">📊</span> 採点基準</div>
+        <div class="criteria-list" id="r-criteria"></div>
+
+        <!-- 解説 -->
+        <div class="sec-title" id="r-exp-title"><span class="sec-icon">💡</span> 解説</div>
+        <div class="r-explanation" id="r-explanation"></div>
+
+        <!-- 採点者の目 -->
+        <div class="r-scorer-note util-hidden" id="r-scorer-note">
+            <div class="scorer-label">🧑‍🏫 採点者の目</div>
+            <div id="r-scorer-note-text"></div>
+        </div>
+
+        <!-- 出典 -->
+        <div class="r-source" id="r-source"></div>
+
+        <!-- ボタン -->
+        <div class="result-btn-area">
+            <button class="btn ghost" id="btn-back">もう一度</button>
+            <button class="btn primary" id="btn-next">次の問題 →</button>
+        </div>
+        <div style="text-align:center; padding-bottom: 20px;">
+            <button class="btn ghost" onclick="window.location.href='index.html'">タイトルへ戻る</button>
+        </div>
+
+    </div>
+</div>
+
+<script src="kijutsushiki_data.js?v=20260617b"></script>
+<script>
+// ===== 助詞判定 =====
+function shouldShow(char, idx, text) {
+    const ALWAYS = new Set('はがをにでともへやかてただなば。、（）「」の'.split(''));
+    if (ALWAYS.has(char)) return true;
+    if (/[ぁ-ん]/.test(char)) {
+        const prev = idx > 0 ? text[idx-1] : '';
+        const next = idx < text.length - 1 ? text[idx+1] : '';
+        const isKK = c => /[一-龥ァ-ヶ]/.test(c);
+        if (isKK(prev) && isKK(next)) return true;
+        if (isKK(prev) && (next === '。' || next === '、' || next === '' || idx === text.length - 1)) return true;
+    }
+    return false;
+}
+
+// ===== 採点基準の範囲取得 =====
+function getCriteriaRanges(fullAnswer, criteria) {
+    const ranges = [];
+    criteria.forEach(c => {
+        const start = fullAnswer.indexOf(c.text);
+        if (start >= 0) {
+            ranges.push({ start, end: start + c.text.length, points: c.points, text: c.text });
+        }
+    });
+    return ranges;
+}
+
+// ===== メインゲーム =====
+class KijutsushikiV2 {
+    constructor() {
+        this.questions = KIJUTSUSHIKI_DATA;
+        
+        const params = new URLSearchParams(window.location.search);
+        this.idx = params.has('q') ? parseInt(params.get('q')) || 0 : 0;
+        if (this.idx < 0 || this.idx >= this.questions.length) this.idx = 0;
+
+        this.revealed = new Set();
+        this.revealCount = 0;
+
+        document.getElementById('btn-answer').onclick = () => this.showResult();
+        document.getElementById('btn-peek').onclick   = () => this.revealAll();
+        document.getElementById('btn-next').onclick   = () => this.next();
+        document.getElementById('btn-back').onclick   = () => this.retry();
+
+        this.load();
+    }
+
+    load() {
+        const q = this.questions[this.idx];
+        this.revealed = new Set();
+        this.revealCount = 0;
+
+        // 画面切替
+        document.getElementById('question-screen').classList.add('active');
+        document.getElementById('result-screen').classList.remove('active');
+
+        // ヘッダー
+        document.getElementById('q-num').textContent = `問題${q.number || this.idx + 1} (${this.idx + 1}/${this.questions.length})`;
+        document.getElementById('q-cat').textContent = q.section;
+
+        // 問題文（\nを<br>に変換）
+        const textEl = document.getElementById('q-text');
+        textEl.innerHTML = q.question.replace(/\n/g, '<br>');
+
+        // 解答文
+        const full = q.fullAnswer || (q.leadText || '') + q.modelAnswer;
+        this.fullAnswer = full;
+        this.criteria = q.criteria;
+        this.criteriaRanges = getCriteriaRanges(full, q.criteria);
+        const leadLen = q.leadText ? q.leadText.length : 0;
+
+        document.getElementById('char-info').textContent = `${full.length}字`;
+
+        // グリッド生成
+        const grid = document.getElementById('answer-grid');
+        grid.innerHTML = '';
+        const cols = 10;
+        const rows = Math.ceil(full.length / cols);
+        const total = rows * cols;
+
+        for (let i = 0; i < total; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.dataset.i = i;
+
+            if (i < full.length) {
+                const ch = full[i];
+                cell.textContent = ch;
+
+                // キーワード範囲
+                const inKw = this.criteriaRanges.some(r => i >= r.start && i < r.end);
+                if (inKw) cell.classList.add('kw');
+
+                // キーワード範囲内かどうか
+                const inKwRange = this.criteriaRanges.some(r => i >= r.start && i < r.end);
+
+                if (i < leadLen) {
+                    cell.classList.add('lead');
+                } else if (!inKwRange && shouldShow(ch, i, full)) {
+                    // キーワード範囲外の助詞だけ見せる
+                    cell.classList.add('particle');
+                } else {
+                    cell.classList.add('hidden');
+                    cell.dataset.char = ch;
+                    cell.textContent = '？';
+                    cell.onclick = () => this.reveal(cell, i);
+                }
+            } else {
+                cell.classList.add('empty');
+            }
+            grid.appendChild(cell);
+        }
+
+        this.updateScore();
+        window.scrollTo(0, 0);
+    }
+
+    reveal(cell, idx) {
+        if (this.revealed.has(idx)) return;
+        this.revealed.add(idx);
+        this.revealCount++;
+        cell.classList.remove('hidden');
+        cell.classList.add('revealed');
+        cell.textContent = cell.dataset.char;  // 本来の文字に戻す
+        cell.onclick = null;
+        this.updateScore();
+    }
+
+    revealAll() {
+        document.querySelectorAll('.cell.hidden').forEach(c => {
+            this.reveal(c, parseInt(c.dataset.i));
+        });
+    }
+
+    updateScore() {
+        const hiddenTotal = document.querySelectorAll('.cell.hidden, .cell.revealed').length;
+        const penalty = hiddenTotal > 0 ? Math.floor((this.revealCount / hiddenTotal) * 20) : 0;
+        const score = Math.max(0, 20 - penalty);
+        document.getElementById('live-score').textContent = score;
+        document.getElementById('q-score-live').textContent = `${score}点`;
+        document.getElementById('reveal-count').textContent = this.revealCount;
+        this.score = score;
+        this.penalty = penalty;
+    }
+
+    // ===== 解説画面 =====
+    showResult() {
+        document.getElementById('question-screen').classList.remove('active');
+        document.getElementById('result-screen').classList.add('active');
+
+        const q = this.questions[this.idx];
+
+        // スコア
+        document.getElementById('r-score').innerHTML = `${this.score} <span class="denom">/ 20</span>`;
+
+        // グレード
+        const gradeEl = document.getElementById('r-grade');
+        gradeEl.className = 'result-grade';
+        if (this.score >= 18) {
+            gradeEl.textContent = '🌟 完璧！';
+            gradeEl.classList.add('excellent');
+        } else if (this.score >= 14) {
+            gradeEl.textContent = '✨ よくできました！';
+            gradeEl.classList.add('good');
+        } else if (this.score >= 8) {
+            gradeEl.textContent = '📖 もう少し！';
+            gradeEl.classList.add('fair');
+        } else {
+            gradeEl.textContent = '📚 復習しましょう';
+            gradeEl.classList.add('poor');
+        }
+
+        // 統計
+        document.getElementById('r-stat-score').textContent = this.score;
+        document.getElementById('r-stat-revealed').textContent = this.revealCount;
+        document.getElementById('r-stat-penalty').textContent = this.penalty > 0 ? `-${this.penalty}` : '0';
+        document.getElementById('r-stat-total').textContent = this.fullAnswer.length;
+
+        // 問題文（改行対応）
+        document.getElementById('r-question').innerHTML = q.question.replace(/\n/g, '<br>');
+
+        // 模範解答（キーワードハイライト）
+        const leadLen = q.leadText ? q.leadText.length : 0;
+        let html = '';
+        const ranges = [...this.criteriaRanges].sort((a, b) => a.start - b.start);
+
+        for (let i = 0; i < this.fullAnswer.length; i++) {
+            const ch = this.fullAnswer[i];
+            const inKw = ranges.find(r => i >= r.start && i < r.end);
+
+            if (i < leadLen) {
+                html += `<span class="lead-mark">${ch}</span>`;
+            } else if (inKw) {
+                html += `<span class="kw-mark">${ch}</span>`;
+            } else {
+                html += ch;
+            }
+        }
+        document.getElementById('r-model-answer').innerHTML = html;
+
+        // 採点基準カード
+        const criteriaEl = document.getElementById('r-criteria');
+        criteriaEl.innerHTML = '';
+
+        // どのキーワードをめくったか判定（全文字めくったら hit）
+        q.criteria.forEach((c, ci) => {
+            const range = ranges.find(r => r.text === c.text);
+            let hit = false;
+            if (range) {
+                // そのキーワード範囲内のhiddenだった文字が全部revealedかどうか
+                hit = true;
+                for (let j = range.start; j < range.end; j++) {
+                    const cell = document.querySelector(`.cell[data-i="${j}"]`);
+                    if (cell && cell.classList.contains('hidden')) {
+                        hit = false; // まだ隠れてる = 見てない
+                        break;
+                    }
+                }
+            }
+
+            const card = document.createElement('div');
+            card.className = `criteria-card ${hit ? 'hit' : 'miss'}`;
+            card.innerHTML = `
+                <div class="c-status">${hit ? '✓' : '✗'}</div>
+                <div class="c-body">
+                    <div class="c-keyword">「${c.text}」</div>
+                </div>
+                <div class="c-pts">${c.points}点</div>
+            `;
+            criteriaEl.appendChild(card);
+        });
+
+        // 解説（データにexplanationがあれば表示、なければ非表示）
+        const expEl = document.getElementById('r-explanation');
+        if (q.explanation) {
+            expEl.innerHTML = q.explanation.replace(/\n/g, '<br>');
+            expEl.style.display = '';
+            document.getElementById('r-exp-title').style.display = '';
+        } else {
+            expEl.style.display = 'none';
+            document.getElementById('r-exp-title').style.display = 'none';
+        }
+
+        // 採点者の目
+        const scorerEl = document.getElementById('r-scorer-note');
+        if (q.scorerNote) {
+            document.getElementById('r-scorer-note-text').innerHTML = q.scorerNote.replace(/\n/g, '<br>');
+            scorerEl.classList.remove('util-hidden');
+        } else {
+            scorerEl.classList.add('util-hidden');
+        }
+
+        // 出典
+        document.getElementById('r-source').textContent = q.source ? `出典：${q.source}` : '';
+
+        // ボタン
+        document.getElementById('btn-next').textContent =
+            this.idx < this.questions.length - 1 ? '次の問題 →' : '最初に戻る';
+
+        window.scrollTo(0, 0);
+    }
+
+    next() {
+        this.idx = (this.idx + 1) % this.questions.length;
+        this.load();
+    }
+
+    retry() {
+        this.load();
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => new KijutsushikiV2());
+</script>
+</body>
+</html>

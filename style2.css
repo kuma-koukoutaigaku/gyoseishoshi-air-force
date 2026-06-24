@@ -57,7 +57,15 @@ body {
     margin-bottom: 1.5rem;
 }
 
-.mode-btn {
+#game-type-select {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.mode-btn, .type-btn {
     background: transparent;
     border: 2px solid #4a4a8a;
     color: #8ab4f8;
@@ -69,12 +77,12 @@ body {
     font-family: inherit;
 }
 
-.mode-btn:hover {
+.mode-btn:hover, .type-btn:hover {
     border-color: #8ab4f8;
     background: rgba(138, 180, 248, 0.1);
 }
 
-.mode-btn.selected {
+.mode-btn.selected, .type-btn.selected {
     background: #8ab4f8;
     color: #0a0a2e;
     border-color: #8ab4f8;
@@ -387,6 +395,16 @@ body {
     z-index: 10;
     pointer-events: none;
     overflow-x: auto;
+    max-height: 40vh;
+    overflow-y: auto;
+}
+
+#question-area.scrollable {
+    pointer-events: auto;
+}
+
+#question-area.takushi {
+    max-height: 20vh;
 }
 
 #question-text {

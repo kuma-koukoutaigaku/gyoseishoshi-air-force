@@ -3,6 +3,7 @@ class Game {
         this.canvas = document.getElementById('game-canvas');
         this.ctx = this.canvas.getContext('2d');
 
+        this.gameType = 'fill-in';
         this.selectedCategory = 'all';
         this.selectedDifficulty = '普通';
         this.playMode = 'sequential';
@@ -76,15 +77,42 @@ class Game {
         allBtn.textContent = '全分野';
         container.appendChild(allBtn);
 
-        // 全カテゴリをgroupごとに整理して表示
         const entries = Object.entries(CATEGORIES);
-        const noGroup = entries.filter(([, cat]) => !cat.group);
-        const groups = new Map();
-        for (const [key, cat] of entries) {
-            if (cat.group) {
-                if (!groups.has(cat.group)) groups.set(cat.group, []);
-                groups.get(cat.group).push([key, cat]);
+        let noGroup = [];
+        let groups = new Map();
+
+        if (this.gameType === 'fill-in') {
+            const valid = entries.filter(([k, v]) => !k.startsWith('takushi_'));
+            noGroup = valid.filter(([, cat]) => !cat.group);
+            for (const [key, cat] of valid) {
+                if (cat.group) {
+                    if (!groups.has(cat.group)) groups.set(cat.group, []);
+                    groups.get(cat.group).push([key, cat]);
+                }
             }
+        } else if (this.gameType === 'multi-choice') {
+            const valid = entries.filter(([k, v]) => k.startsWith('takushi_'));
+            for (const [key, cat] of valid) {
+                const btn = document.createElement('button');
+                btn.className = 'category-btn';
+                btn.dataset.category = key;
+                btn.textContent = cat.label;
+                container.appendChild(btn);
+            }
+            if (valid.length > 0) this.selectedCategory = valid[0][0];
+            return;
+        } else if (this.gameType === 'descriptive') {
+            // 記述式
+            const cats = ['行政法', '民法'];
+            for (const c of cats) {
+                const btn = document.createElement('button');
+                btn.className = 'category-btn';
+                btn.dataset.category = 'kijutsu_' + c;
+                btn.textContent = c;
+                container.appendChild(btn);
+            }
+            this.selectedCategory = 'kijutsu_行政法';
+            return;
         }
 
         // グループなしカテゴリをフラットに表示
@@ -205,6 +233,29 @@ class Game {
     buildSetButtons() {
         const container = document.getElementById('section-buttons');
         container.innerHTML = '';
+
+        if (this.gameType === 'descriptive') {
+            const targetCat = this.selectedCategory.replace('kijutsu_', '');
+            let count = 0;
+            for (let i = 0; i < KIJUTSUSHIKI_DATA.length; i++) {
+                const q = KIJUTSUSHIKI_DATA[i];
+                if (q.category === targetCat) {
+                    const btn = document.createElement('button');
+                    if (count === 0) {
+                        btn.className = 'section-btn selected';
+                        this.setStart = i; // Store actual index in KIJUTSUSHIKI_DATA
+                    } else {
+                        btn.className = 'section-btn';
+                    }
+                    btn.dataset.setStart = String(i);
+                    btn.dataset.setEnd = String(i);
+                    btn.innerHTML = `問題${q.number}：${q.section}`;
+                    container.appendChild(btn);
+                    count++;
+                }
+            }
+            return;
+        }
 
         if (this.selectedCategory === 'all') {
             const btn = document.createElement('button');
@@ -401,13 +452,50 @@ class Game {
         });
 
         document.getElementById('category-buttons').addEventListener('click', (e) => {
-            const btn = e.target.closest('.category-btn');
-            if (!btn) return;
-            document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('selected'));
-            btn.classList.add('selected');
-            this.selectedCategory = btn.dataset.category;
-            this.updateDifficultyButtons();
-            if (this.playMode === 'sequential') {
+            if (e.target.tagName === 'BUTTON') {
+                document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('selected'));
+                e.target.classList.add('selected');
+                this.selectedCategory = e.target.dataset.category;
+                
+                if (this.gameType !== 'descriptive') {
+                    this.updateDifficultyButtons();
+                }
+                this.buildSetButtons();
+            }
+        });
+
+        // Game Type buttons
+        document.getElementById('game-type-select').addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                document.querySelectorAll('.type-btn').forEach(btn => btn.classList.remove('selected'));
+                e.target.classList.add('selected');
+                this.gameType = e.target.dataset.type;
+                
+                if (this.gameType === 'fill-in') {
+                    this.selectedCategory = 'all';
+                    document.getElementById('mode-select').classList.remove('hidden');
+                } else if (this.gameType === 'multi-choice') {
+                    this.selectedCategory = 'takushi_kenpo';
+                    document.getElementById('mode-select').classList.remove('hidden');
+                } else if (this.gameType === 'descriptive') {
+                    this.selectedCategory = 'kijutsu_行政法';
+                    document.getElementById('mode-select').classList.add('hidden');
+                    document.getElementById('difficulty-select').classList.add('hidden');
+                }
+                
+                this.buildCategoryButtons();
+                
+                if (this.gameType !== 'descriptive') {
+                    this.updateDifficultyButtons();
+                }
+                
+                // Highlight the correct category button after rebuild
+                document.querySelectorAll('.category-btn').forEach(btn => {
+                    if (btn.dataset.category === this.selectedCategory) {
+                        btn.classList.add('selected');
+                    }
+                });
+                
                 this.buildSetButtons();
             }
         });
@@ -424,12 +512,13 @@ class Game {
         });
 
         document.getElementById('section-buttons').addEventListener('click', (e) => {
-            const btn = e.target.closest('.section-btn');
-            if (!btn) return;
-            document.querySelectorAll('.section-btn').forEach(b => b.classList.remove('selected'));
-            btn.classList.add('selected');
-            this.setStart = parseInt(btn.dataset.setStart);
-            this.setEnd = parseInt(btn.dataset.setEnd) || 0;
+            const btn = e.target.closest('button');
+            if (btn) {
+                document.querySelectorAll('.section-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                this.setStart = parseInt(btn.dataset.setStart);
+                this.setEnd = parseInt(btn.dataset.setEnd);
+            }
         });
 
         document.getElementById('start-btn').addEventListener('click', () => this.startGame());
@@ -527,6 +616,11 @@ class Game {
     }
 
     startGame() {
+        if (this.gameType === 'descriptive') {
+            window.location.href = `kijutsushiki_v2.html?q=${this.setStart}`;
+            return;
+        }
+
         this.score = 0;
         this.lives = 5;
         this.combo = 0;
@@ -627,8 +721,19 @@ class Game {
         // 最初の穴をアクティブにする
         this.highlightActiveBlank(0);
 
-        // 表がある場合、最初の穴が見えるようにスクロール
-        requestAnimationFrame(() => this.scrollToFirstBlank());
+        // 問題文が長い場合スクロール可能にする
+        const area = document.getElementById('question-area');
+        area.classList.toggle('takushi', q.source && q.source.startsWith('多肢選択式'));
+        requestAnimationFrame(() => {
+            area.scrollTop = 0;
+            if (area.scrollHeight > area.clientHeight) {
+                area.classList.add('scrollable');
+            } else {
+                area.classList.remove('scrollable');
+            }
+            this.scrollToFirstBlank();
+            this.scrollToActiveBlank(0);
+        });
 
         document.getElementById('q-current').textContent = this.currentQuestionIndex + 1;
         document.getElementById('q-total').textContent = this.questions.length;
@@ -980,6 +1085,7 @@ class Game {
             if (this.currentBlankIndex < q.blanks.length) {
                 this.highlightActiveBlank(this.currentBlankIndex);
                 this.scrollToBlank(this.currentBlankIndex);
+                this.scrollToActiveBlank(this.currentBlankIndex);
             }
 
             if (this.currentBlankIndex >= q.blanks.length) {
@@ -1131,6 +1237,18 @@ class Game {
         const wrapRect = wrap.getBoundingClientRect();
         const offset = elRect.left - wrapRect.left + wrap.scrollLeft - wrapRect.width / 2 + elRect.width / 2;
         wrap.scrollTo({ left: Math.max(0, offset), behavior: 'smooth' });
+    }
+
+    scrollToActiveBlank(blankIndex) {
+        const area = document.getElementById('question-area');
+        if (!area || area.scrollHeight <= area.clientHeight) return;
+        const el = document.querySelector('#question-text .blank-group-' + blankIndex);
+        if (!el) return;
+        const areaRect = area.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        if (elRect.top < areaRect.top || elRect.bottom > areaRect.bottom) {
+            area.scrollTo({ top: area.scrollTop + elRect.top - areaRect.top - areaRect.height / 3, behavior: 'smooth' });
+        }
     }
 
     // 問題表示時、最初の穴が見える位置にスクロール
