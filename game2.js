@@ -697,6 +697,10 @@ class Game {
 
     getQuestions() {
         const pool = this.getCategoryPool();
+        // 多肢選択・記述式はplayModeに関係なく選んだ問題だけ返す
+        if (this.gameType === 'multi-choice') {
+            return pool.slice(this.setStart, this.setEnd || (this.setStart + 1));
+        }
         if (this.playMode === 'random') {
             return this.shuffle(pool).slice(0, 10);
         }
