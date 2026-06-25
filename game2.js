@@ -71,11 +71,13 @@ class Game {
         const container = document.getElementById('category-buttons');
         container.innerHTML = '';
 
-        const allBtn = document.createElement('button');
-        allBtn.className = 'category-btn selected';
-        allBtn.dataset.category = 'all';
-        allBtn.textContent = '全分野';
-        container.appendChild(allBtn);
+        if (this.gameType === 'fill-in') {
+            const allBtn = document.createElement('button');
+            allBtn.className = 'category-btn selected';
+            allBtn.dataset.category = 'all';
+            allBtn.textContent = '全分野';
+            container.appendChild(allBtn);
+        }
 
         const entries = Object.entries(CATEGORIES);
         let noGroup = [];

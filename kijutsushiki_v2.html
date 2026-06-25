@@ -509,6 +509,38 @@ body {
     font-weight: bold;
 }
 
+.exp-score-bar {
+    display: inline-block;
+    background: rgba(100, 100, 255, 0.15);
+    border: 1px solid rgba(100, 100, 255, 0.3);
+    border-radius: 6px;
+    padding: 3px 12px;
+    font-size: 0.8rem;
+    color: var(--accent);
+    font-weight: bold;
+    margin: 6px 0 10px;
+    letter-spacing: 0.1em;
+}
+
+.exp-para {
+    margin: 0 0 10px;
+    padding-left: 0;
+    line-height: 1.8;
+    font-size: 0.85rem;
+    color: #ccc;
+}
+
+.exp-plain {
+    margin: 0 0 8px;
+    line-height: 1.8;
+    font-size: 0.82rem;
+    color: #aaa;
+    padding: 4px 8px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 4px;
+    border-left: 2px solid rgba(138, 180, 248, 0.3);
+}
+
 /* --- 採点者の目 --- */
 .r-scorer-note {
     padding: 14px;
@@ -684,6 +716,42 @@ function shouldShow(char, idx, text) {
         if (isKK(prev) && (next === '。' || next === '、' || next === '' || idx === text.length - 1)) return true;
     }
     return false;
+}
+
+// ===== 解説テキストをHTML構造に変換 =====
+function renderExplanation(text) {
+    if (!text) return '';
+    const lines = text.split('\n');
+    const scoreOnly = /^\d+点$/;
+    const bulletFull = /^[①②③④⑤⑥⑦⑧⑨⑩]/;
+
+    // スコア行を1つにまとめる
+    const merged = [];
+    let scoreBuffer = [];
+    for (const line of lines) {
+        if (scoreOnly.test(line.trim())) {
+            scoreBuffer.push(line.trim());
+        } else {
+            if (scoreBuffer.length > 0) {
+                merged.push({ type: 'score', content: scoreBuffer.join(' / ') });
+                scoreBuffer = [];
+            }
+            merged.push({ type: bulletFull.test(line) ? 'bullet' : 'plain', content: line });
+        }
+    }
+    if (scoreBuffer.length > 0) {
+        merged.push({ type: 'score', content: scoreBuffer.join(' / ') });
+    }
+
+    return merged.map(item => {
+        if (item.type === 'score') {
+            return `<div class="exp-score-bar">${item.content}</div>`;
+        } else if (item.type === 'bullet') {
+            return `<p class="exp-para">${item.content}</p>`;
+        } else {
+            return `<p class="exp-plain">${item.content}</p>`;
+        }
+    }).join('');
 }
 
 // ===== 採点基準の範囲取得 =====
@@ -894,7 +962,7 @@ class KijutsushikiV2 {
             const card = document.createElement('div');
             card.className = `criteria-card ${hit ? 'hit' : 'miss'}`;
             card.innerHTML = `
-                <div class="c-status">${hit ? '✓' : '✗'}</div>
+                <div class="c-status">${hit ? '○' : '×'}</div>
                 <div class="c-body">
                     <div class="c-keyword">「${c.text}」</div>
                 </div>
@@ -906,7 +974,7 @@ class KijutsushikiV2 {
         // 解説（データにexplanationがあれば表示、なければ非表示）
         const expEl = document.getElementById('r-explanation');
         if (q.explanation) {
-            expEl.innerHTML = q.explanation.replace(/\n/g, '<br>');
+            expEl.innerHTML = renderExplanation(q.explanation);
             expEl.style.display = '';
             document.getElementById('r-exp-title').style.display = '';
         } else {
@@ -917,7 +985,7 @@ class KijutsushikiV2 {
         // 採点者の目
         const scorerEl = document.getElementById('r-scorer-note');
         if (q.scorerNote) {
-            document.getElementById('r-scorer-note-text').innerHTML = q.scorerNote.replace(/\n/g, '<br>');
+            document.getElementById('r-scorer-note-text').innerHTML = renderExplanation(q.scorerNote);
             scorerEl.classList.remove('util-hidden');
         } else {
             scorerEl.classList.add('util-hidden');
