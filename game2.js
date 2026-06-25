@@ -94,9 +94,10 @@ class Game {
             }
         } else if (this.gameType === 'multi-choice') {
             const valid = entries.filter(([k, v]) => k.startsWith('takushi_'));
-            for (const [key, cat] of valid) {
+            for (let vi = 0; vi < valid.length; vi++) {
+                const [key, cat] = valid[vi];
                 const btn = document.createElement('button');
-                btn.className = 'category-btn';
+                btn.className = 'category-btn' + (vi === 0 ? ' selected' : '');
                 btn.dataset.category = key;
                 btn.textContent = cat.label;
                 container.appendChild(btn);
@@ -497,28 +498,24 @@ class Game {
                 if (this.gameType === 'fill-in') {
                     this.selectedCategory = 'all';
                     document.getElementById('mode-select').classList.remove('hidden');
+                    document.getElementById('section-select').classList.remove('hidden');
                 } else if (this.gameType === 'multi-choice') {
                     this.selectedCategory = 'takushi_kenpo';
                     document.getElementById('mode-select').classList.add('hidden');
                     document.getElementById('difficulty-select').classList.add('hidden');
+                    document.getElementById('section-select').classList.remove('hidden');
                 } else if (this.gameType === 'descriptive') {
                     this.selectedCategory = 'kijutsu_行政法';
                     document.getElementById('mode-select').classList.add('hidden');
                     document.getElementById('difficulty-select').classList.add('hidden');
+                    document.getElementById('section-select').classList.remove('hidden');
                 }
                 
                 this.buildCategoryButtons();
                 
-                if (this.gameType !== 'descriptive') {
+                if (this.gameType === 'fill-in') {
                     this.updateDifficultyButtons();
                 }
-                
-                // Highlight the correct category button after rebuild
-                document.querySelectorAll('.category-btn').forEach(btn => {
-                    if (btn.dataset.category === this.selectedCategory) {
-                        btn.classList.add('selected');
-                    }
-                });
                 
                 this.buildSetButtons();
             }
@@ -604,7 +601,8 @@ class Game {
 
     updateSectionVisibility() {
         const sectionEl = document.getElementById('section-select');
-        if (this.playMode === 'sequential') {
+        // multi-choiceとdescriptiveは常に出題範囲を表示
+        if (this.gameType !== 'fill-in' || this.playMode === 'sequential') {
             sectionEl.classList.remove('hidden');
             this.buildSetButtons();
         } else {
